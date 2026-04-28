@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">MoviesApp_Jaouhari</string>
+    <string name="movie_name_placeholder">Movie Name</string>
+    <string name="play_trailer">Lecture Bande-annonce</string>
+    <string name="synopsis">Synopsis</string>
+    <string name="movie_description_placeholder">Movie description goes here...</string>
+    <string name="nearby_cinemas">Cinémas à proximité</string>
+    <string name="movie_poster_description">Movie Poster</string>
 </resources>

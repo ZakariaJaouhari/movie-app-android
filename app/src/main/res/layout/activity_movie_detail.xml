@@ -1,60 +1,107 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:orientation="vertical"
-    android:layout_height="wrap_content">
-    <androidx.cardview.widget.CardView
-        app:cardElevation="10dp"
-        app:cardCornerRadius="10dp"
-        android:layout_margin="5dp"
-        app:cardBackgroundColor="#FFFFFF"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black"
+    android:fillViewport="true">
+
     <LinearLayout
-        android:orientation="horizontal"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-        <ImageView
-            android:layout_margin="10dp"
-            android:id="@+id/imageview"
-            android:layout_width="120dp"
-            android:layout_height="150dp"/>
-        <LinearLayout
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Movie Poster Section -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="8dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="24dp">
+
+            <ImageView
+                android:id="@+id/imageview"
+                android:layout_width="200dp"
+                android:layout_height="300dp"
+                android:scaleType="centerCrop"
+                android:contentDescription="@string/movie_poster_description"
+                tools:src="@tools:sample/backgrounds/scenic" />
+        </androidx.cardview.widget.CardView>
+
+        <TextView
+            android:id="@+id/textName"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
-            <TextView
-                android:id="@+id/textName"
-                android:textStyle="bold"
-                android:layout_margin="7dp"
-                android:text="Movie Name"
+            android:layout_height="wrap_content"
+            android:text="@string/movie_name_placeholder"
+            android:textColor="@color/white"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:gravity="center_horizontal"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Play Button - Opening External Video Player -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/playButton"
+            style="@style/Widget.MaterialComponents.Button"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="@string/play_trailer"
+            android:textColor="@color/black"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/white"
+            app:cornerRadius="4dp"
+            app:icon="@android:drawable/ic_media_play"
+            app:iconGravity="textStart"
+            app:iconTint="@color/black"
+            android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/synopsis"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/Details"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/movie_description_placeholder"
+            android:textColor="#CCCCCC"
+            android:textSize="14sp"
+            android:lineSpacingExtra="4dp"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/nearby_cinemas"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Map Section -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="250dp"
+            app:cardCornerRadius="8dp"
+            android:layout_marginBottom="20dp">
+
+            <androidx.fragment.app.FragmentContainerView
+                android:id="@+id/map"
+                android:name="com.google.android.gms.maps.SupportMapFragment"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"/>
-            <TextView
-                android:id="@+id/Details"
-                android:layout_margin="5dp"
-                android:textColor="#000"
-                android:textSize="12dp"
-                android:text="Movie Date"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"/>
-        </LinearLayout>
+                android:layout_height="match_parent"
+                tools:context=".MovieDetailActivity" />
+        </androidx.cardview.widget.CardView>
+
     </LinearLayout>
-</androidx.cardview.widget.CardView>
-<Button
-android:id="@+id/playButton"
-android:layout_width="match_parent"
-android:layout_height="wrap_content"
-android:text="Play Movie"
-android:layout_marginTop="16dp"/>
-<fragment
-android:id="@+id/map"
-android:name="com.google.android.gms.maps.SupportMapFragment"
-android:layout_width="match_parent"
-android:layout_height="match_parent"
-android:layout_marginTop="90dp" />
-    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

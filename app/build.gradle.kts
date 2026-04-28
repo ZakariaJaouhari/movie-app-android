@@ -4,11 +4,7 @@ plugins {
 
 android {
     namespace = "com.example.moviesapp_jaouhari"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.moviesapp_jaouhari"
@@ -50,4 +46,5 @@ dependencies {
     implementation ("com.github.bumptech.glide:glide:4.12.0")
     annotationProcessor ("com.github.bumptech.glide:compiler:4.12.0")
     implementation ("com.google.android.exoplayer:exoplayer-core:2.19.1")
+    implementation ("com.pierfrancescosoffritti.androidyoutubeplayer:core:12.1.0")
 }
