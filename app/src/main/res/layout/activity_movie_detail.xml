@@ -32,16 +32,91 @@
                 tools:src="@tools:sample/backgrounds/scenic" />
         </androidx.cardview.widget.CardView>
 
-        <TextView
-            android:id="@+id/textName"
+        <!-- Logo and Name Section -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/movie_name_placeholder"
-            android:textColor="@color/white"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:gravity="center_horizontal"
-            android:layout_marginBottom="12dp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <ImageView
+                android:id="@+id/logoImage"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/logo"
+                android:layout_marginEnd="12dp" />
+
+            <TextView
+                android:id="@+id/textName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/white"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                tools:text="Movie Title" />
+        </LinearLayout>
+
+        <!-- Release Date and Adult Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:id="@+id/releaseDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#CCCCCC"
+                android:textSize="16sp"
+                tools:text="2023-10-27" />
+
+            <TextView
+                android:id="@+id/adultRating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                tools:text="PUBLIC"
+                tools:background="@android:color/holo_green_dark" />
+        </LinearLayout>
+
+        <!-- Rating Section (Stars and Vote Count) on a new line -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="16dp">
+
+            <RatingBar
+                android:id="@+id/movieRating"
+                style="?android:attr/ratingBarStyleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:numStars="5"
+                android:stepSize="0.1"
+                android:isIndicator="true"
+                android:progressTint="@android:color/white"
+                android:progressBackgroundTint="#808080"
+                android:secondaryProgressTint="@android:color/transparent" />
+
+            <TextView
+                android:id="@+id/voteCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:textColor="#808080"
+                android:textSize="14sp"
+                tools:text="(1234 votes)" />
+        </LinearLayout>
 
         <!-- Play Button - Opening External Video Player -->
         <com.google.android.material.button.MaterialButton
@@ -73,11 +148,11 @@
             android:id="@+id/Details"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/movie_description_placeholder"
             android:textColor="#CCCCCC"
             android:textSize="14sp"
             android:lineSpacingExtra="4dp"
-            android:layout_marginBottom="24dp" />
+            android:layout_marginBottom="24dp"
+            tools:text="Movie description goes here..." />
 
         <TextView
             android:layout_width="match_parent"

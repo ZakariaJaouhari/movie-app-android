@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationManager;
 import android.net.Uri;
@@ -13,6 +15,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.RatingBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -42,6 +45,10 @@ public class MovieDetailActivity extends AppCompatActivity implements OnMapReady
     private SupportMapFragment mapFragment;
     private TextView descriptionTextView;
     private TextView Name;
+    private TextView releaseDateTextView;
+    private TextView adultRatingTextView;
+    private TextView voteCountTextView;
+    private RatingBar ratingBar;
     private ImageView img;
     private String trailerKey;
     private RequestQueue requestQueue;
@@ -58,6 +65,10 @@ public class MovieDetailActivity extends AppCompatActivity implements OnMapReady
         descriptionTextView = findViewById(R.id.Details);
         img = findViewById(R.id.imageview);
         Name = findViewById(R.id.textName);
+        releaseDateTextView = findViewById(R.id.releaseDate);
+        adultRatingTextView = findViewById(R.id.adultRating);
+        voteCountTextView = findViewById(R.id.voteCount);
+        ratingBar = findViewById(R.id.movieRating);
         playButton = findViewById(R.id.playButton);
 
         requestQueue = Volley.newRequestQueue(this);
@@ -99,9 +110,30 @@ public class MovieDetailActivity extends AppCompatActivity implements OnMapReady
                     try {
                         String movieName = response.getString("title");
                         String movieDescription = response.getString("overview");
+                        String releaseDate = response.optString("release_date", "N/A");
+                        boolean isAdult = response.optBoolean("adult", false);
+                        double voteAverage = response.optDouble("vote_average", 0.0);
+                        int voteCount = response.optInt("vote_count", 0);
                         String imageUrl = "https://image.tmdb.org/t/p/w500" + response.getString("poster_path");
+
                         Name.setText(movieName);
                         descriptionTextView.setText(movieDescription);
+                        releaseDateTextView.setText(releaseDate);
+                        
+                        // Set Rating and Vote Count
+                        ratingBar.setRating((float) (voteAverage / 2.0));
+                        voteCountTextView.setText(getString(R.string.vote_count_format, voteCount));
+                        
+                        // Rating bar color is set to white in XML
+                        
+                        if (isAdult) {
+                            adultRatingTextView.setText("+18");
+                            adultRatingTextView.setBackgroundResource(android.R.color.holo_red_dark);
+                        } else {
+                            adultRatingTextView.setText("PUBLIC");
+                            adultRatingTextView.setBackgroundResource(android.R.color.holo_green_dark);
+                        }
+
                         if (!isFinishing()) {
                             Glide.with(MovieDetailActivity.this).load(imageUrl).into(img);
                         }
