@@ -7,4 +7,5 @@
     <string name="nearby_cinemas">Cinémas à proximité</string>
     <string name="movie_poster_description">Movie Poster</string>
     <string name="vote_count_format">(%1$d votes)</string>
+    <string name="google_maps_preview">Google Maps Preview</string>
 </resources>

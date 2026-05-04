@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1065461990129",
+    "project_id": "enjoy-ee5e6",
+    "storage_bucket": "enjoy-ee5e6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1065461990129:android:ee2b806223b6c8ae781f50",
+        "android_client_info": {
+          "package_name": "com.example.moviesapp_jaouhari"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCE94jWVWHLSyL0T4Z3vPzljauu8AP8xRg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

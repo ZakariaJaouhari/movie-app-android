@@ -175,7 +175,8 @@
                 android:name="com.google.android.gms.maps.SupportMapFragment"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                tools:context=".MovieDetailActivity" />
+                tools:context=".MovieDetailActivity"
+                tools:layout="@layout/map_placeholder" />
         </androidx.cardview.widget.CardView>
 
     </LinearLayout>

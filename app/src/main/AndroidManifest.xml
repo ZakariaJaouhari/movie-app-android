@@ -24,14 +24,22 @@
             android:value="AIzaSyCk-lkzx1GeEAqTm1M9v8YYqkAK1biU530" />
 
         <activity
-            android:name=".MainActivity"
+            android:name=".LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".RegisterActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" />
+
         <activity android:name=".MovieDetailActivity" />
         <activity android:name=".VideoPlayer" />
         <activity android:name=".movie_item_list" />

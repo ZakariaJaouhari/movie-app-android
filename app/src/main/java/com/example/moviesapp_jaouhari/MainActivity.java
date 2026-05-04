@@ -1,5 +1,6 @@
 package com.example.moviesapp_jaouhari;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.text.Editable;
@@ -26,6 +27,7 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
+import com.google.firebase.auth.FirebaseAuth;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -53,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
     
     private EditText searchEditText;
     private ImageView searchIcon;
+    private ImageView logoutIcon;
     private Spinner genreSpinner;
     private RequestQueue queue;
     
@@ -71,6 +74,7 @@ public class MainActivity extends AppCompatActivity {
 
         searchEditText = findViewById(R.id.editTextSearch);
         searchIcon = findViewById(R.id.imageSearchIcon);
+        logoutIcon = findViewById(R.id.logoutIcon);
         genreSpinner = findViewById(R.id.genreSpinner);
         
         carouselSection = findViewById(R.id.carouselSection);
@@ -114,6 +118,12 @@ public class MainActivity extends AppCompatActivity {
                 searchEditText.setVisibility(View.GONE);
                 searchEditText.setText("");
             }
+        });
+
+        logoutIcon.setOnClickListener(v -> {
+            FirebaseAuth.getInstance().signOut();
+            startActivity(new Intent(MainActivity.this, LoginActivity.class));
+            finish();
         });
 
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
