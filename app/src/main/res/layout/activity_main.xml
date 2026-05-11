@@ -5,87 +5,13 @@
     android:layout_height="match_parent"
     android:background="@color/black">
 
-    <!-- ===== FIXED HEADER ===== -->
-    <RelativeLayout
-        android:id="@+id/headerLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/black"
-        android:paddingTop="12dp"
-        android:paddingBottom="4dp"
-        android:paddingHorizontal="16dp">
-
-        <!-- Logo -->
-        <ImageView
-            android:id="@+id/imageLogo"
-            android:layout_width="80dp"
-            android:layout_height="36dp"
-            android:layout_alignParentStart="true"
-            android:layout_centerVertical="true"
-            android:scaleType="fitStart"
-            android:src="@drawable/logo" />
-
-        <!-- Right icons -->
-        <LinearLayout
-            android:id="@+id/rightIcons"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <ImageView
-                android:id="@+id/imageSearchIcon"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_marginEnd="16dp"
-                android:src="@android:drawable/ic_menu_search"
-                app:tint="@color/white" />
-
-            <ImageView
-                android:id="@+id/logoutIcon"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:src="@android:drawable/ic_lock_power_off"
-                app:tint="@color/white" />
-
-        </LinearLayout>
-
-        <!-- Genre Spinner (below logo, always visible) -->
-        <Spinner
-            android:id="@+id/genreSpinner"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/imageLogo"
-            android:layout_marginTop="6dp"
-            android:background="@drawable/spinner_bg"
-            android:spinnerMode="dropdown" />
-
-    </RelativeLayout>
-
-    <!-- Search Bar -->
-    <EditText
-        android:id="@+id/editTextSearch"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/headerLayout"
-        android:layout_margin="12dp"
-        android:background="@color/netflix_dark_grey"
-        android:hint="Rechercher des films..."
-        android:inputType="text"
-        android:padding="12dp"
-        android:textColor="@color/white"
-        android:textColorHint="#999999"
-        android:visibility="gone" />
-
     <!-- ===== HOME CONTENT ===== -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/homeContentScrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@+id/bottomNavigation"
-        android:layout_below="@id/headerLayout">
+        android:layout_alignParentTop="true">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -135,31 +61,16 @@
                 android:orientation="vertical"
                 android:layout_marginTop="20dp">
 
-                <LinearLayout
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
+                    android:text="Top 10 en 2026"
+                    android:textColor="@color/white"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
                     android:paddingStart="12dp"
                     android:paddingEnd="12dp"
-                    android:paddingBottom="10dp">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Top 10 en 2026"
-                        android:textColor="@color/white"
-                        android:textSize="17sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Tout voir"
-                        android:textColor="@color/netflix_red"
-                        android:textSize="13sp" />
-
-                </LinearLayout>
+                    android:paddingBottom="10dp" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/topRatedRecyclerView"
@@ -172,42 +83,88 @@
 
             </LinearLayout>
 
-            <!-- ── ACTION ── -->
+            <!-- ── GENRE SECTIONS (dynamiques) ── -->
             <LinearLayout
-                android:id="@+id/actionSection"
+                android:id="@+id/genreSectionsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="8dp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="16dp" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- ===== SERIES CONTENT ===== -->
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/seriesContentScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@+id/bottomNavigation"
+        android:layout_alignParentTop="true"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Hero TV carousel -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/tvCarouselRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="520dp"
+                android:overScrollMode="never" />
+
+            <!-- Tendances séries de la semaine -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Tendances séries de la semaine"
+                    android:textColor="@color/white"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:paddingStart="12dp"
+                    android:paddingBottom="10dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/tvTrendingRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="195dp"
+                    android:paddingStart="12dp"
+                    android:clipToPadding="false"
+                    android:overScrollMode="never" />
+
+            </LinearLayout>
+
+            <!-- Top 10 séries -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:layout_marginTop="20dp">
 
-                <LinearLayout
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
+                    android:text="Top 10 séries en 2026"
+                    android:textColor="@color/white"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
                     android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
-                    android:paddingBottom="10dp">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Action"
-                        android:textColor="@color/white"
-                        android:textSize="17sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Tout voir"
-                        android:textColor="@color/netflix_red"
-                        android:textSize="13sp" />
-
-                </LinearLayout>
+                    android:paddingBottom="10dp" />
 
                 <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/actionRecyclerView"
+                    android:id="@+id/tvTopRatedRecyclerView"
                     android:layout_width="match_parent"
                     android:layout_height="170dp"
                     android:paddingStart="12dp"
@@ -217,44 +174,13 @@
 
             </LinearLayout>
 
-            <!-- ── POPULAIRES (titre dynamique) ── -->
+            <!-- TV Genre Sections (dynamiques) -->
             <LinearLayout
-                android:id="@+id/popularSection"
+                android:id="@+id/tvGenreSectionsContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginTop="20dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
-                    android:paddingBottom="10dp">
-
-                    <TextView
-                        android:id="@+id/popularTitle"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Populaires"
-                        android:textColor="@color/white"
-                        android:textSize="17sp"
-                        android:textStyle="bold" />
-
-                </LinearLayout>
-
-                <!-- Vertical list (filtre / recherche) -->
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recyclerView"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_margin="2dp"
-                    android:nestedScrollingEnabled="false"
-                    android:overScrollMode="never" />
-
-            </LinearLayout>
+                android:layout_marginTop="8dp" />
 
             <View
                 android:layout_width="match_parent"
@@ -269,9 +195,10 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@+id/bottomNavigation"
-        android:layout_below="@id/headerLayout"
+        android:layout_alignParentTop="true"
         android:orientation="vertical"
         android:background="@color/black"
+        android:paddingTop="60dp"
         android:visibility="gone">
 
         <TextView
@@ -300,8 +227,9 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_above="@+id/bottomNavigation"
-        android:layout_below="@id/headerLayout"
+        android:layout_alignParentTop="true"
         android:orientation="vertical"
+        android:paddingTop="60dp"
         android:visibility="gone">
 
         <TextView
@@ -344,5 +272,109 @@
         app:itemTextColor="@color/nav_item_color_state"
         app:labelVisibilityMode="labeled"
         app:menu="@menu/bottom_nav_menu" />
+
+    <!-- ===== HEADER OVERLAY (déclaré en dernier = rendu par-dessus tout) ===== -->
+    <RelativeLayout
+        android:id="@+id/headerLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:background="@drawable/gradient_header"
+        android:paddingTop="28dp"
+        android:paddingBottom="72dp"
+        android:paddingHorizontal="16dp">
+
+        <!-- Logo -->
+        <ImageView
+            android:id="@+id/imageLogo"
+            android:layout_width="80dp"
+            android:layout_height="36dp"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true"
+            android:scaleType="fitStart"
+            android:src="@drawable/logo" />
+
+        <!-- Right icons -->
+        <LinearLayout
+            android:id="@+id/rightIcons"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_alignTop="@id/imageLogo"
+            android:layout_alignBottom="@id/imageLogo"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:id="@+id/imageSearchIcon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="16dp"
+                android:src="@drawable/ic_search"
+                app:tint="@color/white" />
+
+            <ImageView
+                android:id="@+id/logoutIcon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@android:drawable/ic_lock_power_off"
+                app:tint="@color/white" />
+
+        </LinearLayout>
+
+        <!-- Tab buttons -->
+        <LinearLayout
+            android:id="@+id/tabAndFilterRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/imageLogo"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="6dp">
+
+            <TextView
+                android:id="@+id/btnFilms"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Films"
+                android:textColor="@color/black"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="5dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_tab_pill_selected" />
+
+            <TextView
+                android:id="@+id/btnSeries"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Séries"
+                android:textColor="@color/white"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="5dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_tab_pill" />
+
+        </LinearLayout>
+
+        <!-- Search Bar (visible quand activée) -->
+        <EditText
+            android:id="@+id/editTextSearch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/tabAndFilterRow"
+            android:layout_marginTop="8dp"
+            android:background="@color/netflix_dark_grey"
+            android:hint="Rechercher des films..."
+            android:inputType="text"
+            android:padding="12dp"
+            android:textColor="@color/white"
+            android:textColorHint="#999999"
+            android:visibility="gone" />
+
+    </RelativeLayout>
 
 </RelativeLayout>

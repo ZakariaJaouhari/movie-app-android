@@ -11,6 +11,7 @@ public class MyMovieData {
     private List<Integer> genreIds;
     private String genreNames;
     private String backdropPath;
+    private boolean isTV = false;
 
     public MyMovieData(int movieId, String movieName, String movieDate, String movieImage) {
         this.movieName = movieName;
@@ -70,4 +71,7 @@ public class MyMovieData {
     public void setBackdropPath(String backdropPath) {
         this.backdropPath = backdropPath;
     }
+
+    public boolean isTV() { return isTV; }
+    public void setTV(boolean tv) { isTV = tv; }
 }

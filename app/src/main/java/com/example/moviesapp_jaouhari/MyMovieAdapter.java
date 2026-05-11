@@ -41,7 +41,7 @@ public class MyMovieAdapter extends
             viewType) {
         LayoutInflater layoutInflater =
                 LayoutInflater.from(parent.getContext());
-        View view = layoutInflater.inflate(R.layout.activity_movie_item_list,
+        View view = layoutInflater.inflate(R.layout.item_movie_list,
                 parent, false);
         return new ViewHolder(view);
     }

@@ -51,6 +51,18 @@ public class MovieDetailActivity extends AppCompatActivity {
     private SimilarMoviesAdapter similarMoviesAdapter;
     private List<MyMovieData> similarMoviesList = new ArrayList<>();
 
+    // TV seasons & episodes
+    private android.widget.LinearLayout seasonsSection;
+    private RecyclerView seasonsRecyclerView;
+    private TextView episodesTitle;
+    private TextView episodeCountBadge;
+    private RecyclerView episodesRecyclerView;
+    private SeasonAdapter seasonAdapter;
+    private EpisodeAdapter episodeAdapter;
+    private final List<TvSeason> seasonsList = new ArrayList<>();
+    private final List<TvEpisode> episodesList = new ArrayList<>();
+    private int currentSeasonNumber = 1;
+
     private FirebaseFirestore db;
     private FirebaseUser currentUser;
     private int currentMovieId;
@@ -58,6 +70,7 @@ public class MovieDetailActivity extends AppCompatActivity {
     private String currentMovieDate;
     private String currentPosterPath;
     private boolean isInMyList = false;
+    private boolean isTV = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,11 +92,31 @@ public class MovieDetailActivity extends AppCompatActivity {
         similarMoviesAdapter = new SimilarMoviesAdapter(similarMoviesList, this);
         recyclerViewSimilar.setAdapter(similarMoviesAdapter);
 
+        // TV seasons & episodes
+        seasonsSection = findViewById(R.id.seasonsSection);
+        seasonsRecyclerView = findViewById(R.id.seasonsRecyclerView);
+        episodesTitle = findViewById(R.id.episodesTitle);
+        episodeCountBadge = findViewById(R.id.episodeCountBadge);
+        episodesRecyclerView = findViewById(R.id.episodesRecyclerView);
+
+        seasonsRecyclerView.setLayoutManager(
+                new androidx.recyclerview.widget.LinearLayoutManager(this,
+                        androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, false));
+        seasonAdapter = new SeasonAdapter(seasonsList, (season, position) -> {
+            showEpisodesFor(season);
+        });
+        seasonsRecyclerView.setAdapter(seasonAdapter);
+
+        episodesRecyclerView.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
+        episodeAdapter = new EpisodeAdapter(episodesList, episode -> fetchEpisodeTrailer(episode.getEpisodeNumber()));
+        episodesRecyclerView.setAdapter(episodeAdapter);
+
         db = FirebaseFirestore.getInstance();
         currentUser = FirebaseAuth.getInstance().getCurrentUser();
 
         requestQueue = Volley.newRequestQueue(this);
 
+        isTV = getIntent().getBooleanExtra("isTV", false);
         currentMovieId = getIntent().getIntExtra("movieId", -1);
         if (currentMovieId != -1) {
             fetchMovieDetails(currentMovieId);
@@ -96,7 +129,7 @@ public class MovieDetailActivity extends AppCompatActivity {
         playButton.setOnClickListener(v -> {
             if (trailerKey != null && !trailerKey.isEmpty()) {
                 String trailerUrl = "https://www.youtube.com/watch?v=" + trailerKey;
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(trailerUrl));
+                Intent intent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(trailerUrl));
                 startActivity(intent);
             } else {
                 Toast.makeText(MovieDetailActivity.this, "Bande-annonce non disponible", Toast.LENGTH_SHORT).show();
@@ -182,41 +215,71 @@ public class MovieDetailActivity extends AppCompatActivity {
 
     private void fetchMovieDetails(int movieId) {
         String TMDB_API_KEY = "ce601ad5b7a468bf65223a10b811735b";
-        String movieDetailsUrl = "https://api.themoviedb.org/3/movie/" + movieId + "?api_key=" + TMDB_API_KEY;
-        String movieVideosUrl = "https://api.themoviedb.org/3/movie/" + movieId + "/videos?api_key=" + TMDB_API_KEY;
+        String mediaType = isTV ? "tv" : "movie";
+        String movieDetailsUrl = "https://api.themoviedb.org/3/" + mediaType + "/" + movieId + "?api_key=" + TMDB_API_KEY + "&language=fr-FR";
+        String movieVideosUrl = "https://api.themoviedb.org/3/" + mediaType + "/" + movieId + "/videos?api_key=" + TMDB_API_KEY;
 
         JsonObjectRequest movieDetailsRequest = new JsonObjectRequest(Request.Method.GET, movieDetailsUrl, null,
                 response -> {
-                    try {
-                        currentMovieName = response.getString("title");
-                        String movieDescription = response.getString("overview");
-                        currentMovieDate = response.optString("release_date", "N/A");
-                        boolean isAdult = response.optBoolean("adult", false);
-                        double voteAverage = response.optDouble("vote_average", 0.0);
-                        int voteCount = response.optInt("vote_count", 0);
-                        currentPosterPath = response.optString("poster_path", "");
-                        String imageUrl = "https://image.tmdb.org/t/p/w500" + currentPosterPath;
+                    currentMovieName = isTV
+                            ? response.optString("name", response.optString("title", ""))
+                            : response.optString("title", "");
+                    String movieDescription = response.optString("overview", "");
+                    currentMovieDate = isTV
+                            ? response.optString("first_air_date", response.optString("release_date", "N/A"))
+                            : response.optString("release_date", "N/A");
+                    boolean isAdult = response.optBoolean("adult", false);
+                    double voteAverage = response.optDouble("vote_average", 0.0);
+                    int voteCount = response.optInt("vote_count", 0);
+                    currentPosterPath = response.optString("poster_path", "");
+                    String imageUrl = "https://image.tmdb.org/t/p/w500" + currentPosterPath;
 
-                        Name.setText(currentMovieName);
-                        descriptionTextView.setText(movieDescription);
-                        releaseDateTextView.setText(currentMovieDate);
+                    Name.setText(currentMovieName);
+                    descriptionTextView.setText(movieDescription);
+                    releaseDateTextView.setText(currentMovieDate);
 
-                        ratingBar.setRating((float) (voteAverage / 2.0));
-                        voteCountTextView.setText(getString(R.string.vote_count_format, voteCount));
+                    ratingBar.setRating((float) (voteAverage / 2.0));
+                    voteCountTextView.setText(getString(R.string.vote_count_format, voteCount));
 
-                        if (isAdult) {
-                            adultRatingTextView.setText("+18");
-                            adultRatingTextView.setBackgroundResource(android.R.color.holo_red_dark);
-                        } else {
-                            adultRatingTextView.setText("PUBLIC");
-                            adultRatingTextView.setBackgroundResource(android.R.color.holo_green_dark);
+                    if (isAdult) {
+                        adultRatingTextView.setText("+18");
+                        adultRatingTextView.setBackgroundResource(android.R.color.holo_red_dark);
+                    } else {
+                        adultRatingTextView.setText("PUBLIC");
+                        adultRatingTextView.setBackgroundResource(android.R.color.holo_green_dark);
+                    }
+
+                    if (!isFinishing()) {
+                        Glide.with(MovieDetailActivity.this).load(imageUrl).into(img);
+                    }
+
+                    // Parse seasons for TV shows
+                    if (isTV) {
+                        try {
+                            JSONArray seasonsArray = response.optJSONArray("seasons");
+                            if (seasonsArray != null) {
+                                seasonsList.clear();
+                                for (int i = 0; i < seasonsArray.length(); i++) {
+                                    JSONObject s = seasonsArray.getJSONObject(i);
+                                    int seasonNum = s.optInt("season_number", 0);
+                                    int epCount = s.optInt("episode_count", 0);
+                                    if (seasonNum == 0) continue; // ignorer les épisodes spéciaux
+                                    seasonsList.add(new TvSeason(
+                                            seasonNum,
+                                            epCount,
+                                            s.optString("name", "Saison " + seasonNum),
+                                            s.optString("poster_path", ""),
+                                            s.optString("air_date", "")));
+                                }
+                                seasonAdapter.notifyDataSetChanged();
+                                seasonsSection.setVisibility(android.view.View.VISIBLE);
+                                if (!seasonsList.isEmpty()) {
+                                    showEpisodesFor(seasonsList.get(0));
+                                }
+                            }
+                        } catch (JSONException e) {
+                            Log.e(TAG, "Seasons parse error: " + e.getMessage());
                         }
-
-                        if (!isFinishing()) {
-                            Glide.with(MovieDetailActivity.this).load(imageUrl).into(img);
-                        }
-                    } catch (JSONException e) {
-                        e.printStackTrace();
                     }
                 }, error -> Log.e(TAG, "Error: " + error.getMessage()));
 
@@ -244,7 +307,8 @@ public class MovieDetailActivity extends AppCompatActivity {
 
     private void fetchSimilarMovies(int movieId) {
         String TMDB_API_KEY = "ce601ad5b7a468bf65223a10b811735b";
-        String similarMoviesUrl = "https://api.themoviedb.org/3/movie/" + movieId + "/similar?api_key=" + TMDB_API_KEY;
+        String mediaTypeRec = isTV ? "tv" : "movie";
+        String similarMoviesUrl = "https://api.themoviedb.org/3/" + mediaTypeRec + "/" + movieId + "/recommendations?api_key=" + TMDB_API_KEY + "&language=fr-FR";
 
         JsonObjectRequest similarMoviesRequest = new JsonObjectRequest(Request.Method.GET, similarMoviesUrl, null,
                 response -> {
@@ -254,11 +318,16 @@ public class MovieDetailActivity extends AppCompatActivity {
                         for (int i = 0; i < Math.min(results.length(), 12); i++) {
                             JSONObject movieObj = results.getJSONObject(i);
                             int id = movieObj.getInt("id");
-                            String title = movieObj.getString("title");
-                            String date = movieObj.optString("release_date", "");
+                            String title = isTV
+                                    ? movieObj.optString("name", movieObj.optString("title", ""))
+                                    : movieObj.optString("title", "");
+                            String date = isTV
+                                    ? movieObj.optString("first_air_date", movieObj.optString("release_date", ""))
+                                    : movieObj.optString("release_date", "");
                             String posterPath = movieObj.optString("poster_path", "");
-
-                            similarMoviesList.add(new MyMovieData(id, title, date, posterPath));
+                            MyMovieData item = new MyMovieData(id, title, date, posterPath);
+                            item.setTV(isTV);
+                            similarMoviesList.add(item);
                         }
                         similarMoviesAdapter.notifyDataSetChanged();
                     } catch (JSONException e) {
@@ -267,6 +336,88 @@ public class MovieDetailActivity extends AppCompatActivity {
                 }, error -> Log.e(TAG, "Error fetching similar movies: " + error.getMessage()));
 
         requestQueue.add(similarMoviesRequest);
+    }
+
+    // ─── Episode trailer ─────────────────────────────────────────────────────
+
+    private void fetchEpisodeTrailer(int episodeNumber) {
+        String TMDB_API_KEY = "ce601ad5b7a468bf65223a10b811735b";
+        String url = "https://api.themoviedb.org/3/tv/" + currentMovieId
+                + "/season/" + currentSeasonNumber
+                + "/episode/" + episodeNumber
+                + "/videos?api_key=" + TMDB_API_KEY + "&language=fr-FR";
+
+        com.android.volley.toolbox.JsonObjectRequest req =
+                new com.android.volley.toolbox.JsonObjectRequest(
+                        com.android.volley.Request.Method.GET, url, null,
+                        response -> {
+                            try {
+                                JSONArray results = response.getJSONArray("results");
+                                String key = null;
+                                for (int i = 0; i < results.length(); i++) {
+                                    JSONObject v = results.getJSONObject(i);
+                                    if ("YouTube".equals(v.optString("site"))
+                                            && ("Trailer".equals(v.optString("type"))
+                                            || "Teaser".equals(v.optString("type")))) {
+                                        key = v.optString("key");
+                                        break;
+                                    }
+                                }
+                                if (key != null && !key.isEmpty()) {
+                                    String ytUrl = "https://www.youtube.com/watch?v=" + key;
+                                    startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(ytUrl)));
+                                } else {
+                                    Toast.makeText(this, "Bande-annonce non disponible", Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (JSONException ex) {
+                                Log.e(TAG, "Episode trailer error: " + ex.getMessage());
+                            }
+                        },
+                        error -> Toast.makeText(this, "Bande-annonce non disponible", Toast.LENGTH_SHORT).show());
+        requestQueue.add(req);
+    }
+
+    // ─── Seasons / Episodes ──────────────────────────────────────────────────
+
+    private void showEpisodesFor(TvSeason season) {
+        currentSeasonNumber = season.getSeasonNumber();
+        String label = season.getName() + " • " + season.getEpisodeCount() + " épisodes";
+        episodesTitle.setText(label);
+        episodesTitle.setVisibility(android.view.View.VISIBLE);
+        episodesRecyclerView.setVisibility(android.view.View.VISIBLE);
+        episodeCountBadge.setText(season.getEpisodeCount() + " épisodes");
+        fetchEpisodes(currentMovieId, season.getSeasonNumber());
+    }
+
+    private void fetchEpisodes(int tvId, int seasonNumber) {
+        String TMDB_API_KEY = "ce601ad5b7a468bf65223a10b811735b";
+        String url = "https://api.themoviedb.org/3/tv/" + tvId + "/season/" + seasonNumber
+                + "?api_key=" + TMDB_API_KEY + "&language=fr-FR";
+
+        com.android.volley.toolbox.JsonObjectRequest req =
+                new com.android.volley.toolbox.JsonObjectRequest(
+                        com.android.volley.Request.Method.GET, url, null,
+                        response -> {
+                            try {
+                                JSONArray eps = response.getJSONArray("episodes");
+                                episodesList.clear();
+                                for (int i = 0; i < eps.length(); i++) {
+                                    JSONObject e = eps.getJSONObject(i);
+                                    episodesList.add(new TvEpisode(
+                                            e.optInt("episode_number", i + 1),
+                                            e.optString("name", ""),
+                                            e.optString("overview", ""),
+                                            e.optString("still_path", ""),
+                                            e.optInt("runtime", 0),
+                                            e.optDouble("vote_average", 0.0)));
+                                }
+                                episodeAdapter.notifyDataSetChanged();
+                            } catch (JSONException ex) {
+                                Log.e(TAG, "Episodes error: " + ex.getMessage());
+                            }
+                        },
+                        error -> Log.e(TAG, "Episodes fetch error: " + error.getMessage()));
+        requestQueue.add(req);
     }
 
     private class SimilarMoviesAdapter extends RecyclerView.Adapter<SimilarMoviesAdapter.ViewHolder> {
@@ -295,6 +446,7 @@ public class MovieDetailActivity extends AppCompatActivity {
             holder.itemView.setOnClickListener(v -> {
                 Intent intent = new Intent(context, MovieDetailActivity.class);
                 intent.putExtra("movieId", movie.getMovieId());
+                intent.putExtra("isTV", movie.isTV());
                 context.startActivity(intent);
             });
         }

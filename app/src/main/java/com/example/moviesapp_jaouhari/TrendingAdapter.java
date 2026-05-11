@@ -49,6 +49,7 @@ public class TrendingAdapter extends RecyclerView.Adapter<TrendingAdapter.ViewHo
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, MovieDetailActivity.class);
             intent.putExtra("movieId", movie.getMovieId());
+            intent.putExtra("isTV", movie.isTV());
             context.startActivity(intent);
         });
     }

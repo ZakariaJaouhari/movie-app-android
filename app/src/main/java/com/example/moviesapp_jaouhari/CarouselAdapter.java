@@ -104,6 +104,7 @@ public class CarouselAdapter extends RecyclerView.Adapter<CarouselAdapter.ViewHo
         holder.heroPlayBtn.setOnClickListener(v -> {
             Intent intent = new Intent(context, MovieDetailActivity.class);
             intent.putExtra("movieId", movie.getMovieId());
+            intent.putExtra("isTV", movie.isTV());
             context.startActivity(intent);
         });
 

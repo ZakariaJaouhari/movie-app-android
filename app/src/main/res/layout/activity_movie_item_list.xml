@@ -1,49 +1,97 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    app:cardBackgroundColor="@color/netflix_dark_grey"
-    app:cardCornerRadius="8dp"
-    app:cardElevation="4dp">
+    android:layout_height="match_parent"
+    android:background="@color/black">
 
+    <!-- RecyclerView remplit tout l'écran, passe derrière le header -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/genreListRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentBottom="true"
+        android:padding="4dp"
+        android:clipToPadding="false" />
+
+    <!-- Back button + genre title : positionné sous le header -->
     <LinearLayout
+        android:id="@+id/backTitleRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:layout_below="@id/headerLayout"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="12dp">
 
         <ImageView
-            android:id="@+id/imageview"
-            android:layout_width="121dp"
-            android:layout_height="170dp"
-            android:scaleType="centerCrop" />
+            android:id="@+id/backButton"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginEnd="12dp"
+            android:src="@drawable/ic_back"
+            android:padding="2dp" />
+
+        <TextView
+            android:id="@+id/genreTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/white"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <!-- Header overlay : déclaré en dernier = rendu par-dessus le RecyclerView -->
+    <RelativeLayout
+        android:id="@+id/headerLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:background="@drawable/gradient_header"
+        android:paddingTop="28dp"
+        android:paddingBottom="72dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <ImageView
+            android:id="@+id/imageLogo"
+            android:layout_width="80dp"
+            android:layout_height="36dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:scaleType="fitStart"
+            android:src="@drawable/logo" />
 
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:gravity="center_vertical"
-            android:orientation="vertical"
-            android:padding="12dp">
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/textName"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Movie Name"
-                android:textColor="@color/white"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+            <ImageView
+                android:id="@+id/imageSearchIcon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="16dp"
+                android:src="@drawable/ic_search"
+                app:tint="@color/white" />
 
-            <TextView
-                android:id="@+id/textdate"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Movie Date"
-                android:textColor="#CCCCCC"
-                android:textSize="14sp" />
+            <ImageView
+                android:id="@+id/logoutIcon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@android:drawable/ic_lock_power_off"
+                app:tint="@color/white" />
+
         </LinearLayout>
-    </LinearLayout>
-</androidx.cardview.widget.CardView>
+
+    </RelativeLayout>
+
+</RelativeLayout>

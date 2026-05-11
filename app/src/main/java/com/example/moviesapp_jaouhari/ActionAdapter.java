@@ -37,6 +37,7 @@ public class ActionAdapter extends RecyclerView.Adapter<ActionAdapter.ViewHolder
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(context, MovieDetailActivity.class);
             intent.putExtra("movieId", movieData.getMovieId());
+            intent.putExtra("isTV", movieData.isTV());
             context.startActivity(intent);
         });
     }
