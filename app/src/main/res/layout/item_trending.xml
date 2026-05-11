@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="130dp"
+    android:layout_height="195dp"
+    android:layout_marginStart="0dp"
+    android:layout_marginEnd="4dp">
+
+    <!-- Large number behind (shifted left) -->
+    <TextView
+        android:id="@+id/trendingNumber"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:textSize="100sp"
+        android:textStyle="bold"
+        android:textColor="#CC1a1a1a"
+        android:fontFamily="sans-serif-black"
+        android:shadowColor="#FFFFFFFF"
+        android:shadowDx="2"
+        android:shadowDy="0"
+        android:shadowRadius="1"
+        android:layout_marginStart="-8dp"
+        android:layout_marginBottom="-16dp" />
+
+    <!-- Poster overlapping the number -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="100dp"
+        android:layout_height="150dp"
+        android:layout_gravity="top|end"
+        app:cardCornerRadius="6dp"
+        app:cardElevation="4dp">
+
+        <ImageView
+            android:id="@+id/trendingPoster"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:contentDescription="@null" />
+
+    </androidx.cardview.widget.CardView>
+
+</FrameLayout>

@@ -133,6 +133,22 @@
             app:icon="@android:drawable/ic_media_play"
             app:iconGravity="textStart"
             app:iconTint="@color/black"
+            android:layout_marginBottom="8dp"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/addToMyListButton"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="@string/add_to_my_list"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:cornerRadius="4dp"
+            app:icon="@drawable/ic_my_list"
+            app:iconGravity="textStart"
+            app:iconTint="@color/white"
+            app:strokeColor="@color/white"
             android:layout_marginBottom="16dp"/>
 
         <TextView
@@ -154,30 +170,22 @@
             android:layout_marginBottom="24dp"
             tools:text="Movie description goes here..." />
 
+        <!-- Similar Movies Section -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/nearby_cinemas"
+            android:text="@string/similar_movies"
             android:textColor="@color/white"
             android:textSize="18sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
 
-        <!-- Map Section -->
-        <androidx.cardview.widget.CardView
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewSimilarMovies"
             android:layout_width="match_parent"
-            android:layout_height="250dp"
-            app:cardCornerRadius="8dp"
-            android:layout_marginBottom="20dp">
-
-            <androidx.fragment.app.FragmentContainerView
-                android:id="@+id/map"
-                android:name="com.google.android.gms.maps.SupportMapFragment"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                tools:context=".MovieDetailActivity"
-                tools:layout="@layout/map_placeholder" />
-        </androidx.cardview.widget.CardView>
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"
+            tools:listitem="@layout/item_similar_movie" />
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

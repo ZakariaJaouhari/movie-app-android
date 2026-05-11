@@ -3,16 +3,12 @@ package com.example.moviesapp_jaouhari;
 import static android.content.ContentValues.TAG;
 import android.content.Context;
 import android.content.Intent;
-import android.Manifest;
-import android.content.pm.PackageManager;
-import android.content.res.ColorStateList;
-import android.graphics.Color;
-import android.location.Location;
-import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.RatingBar;
@@ -20,29 +16,26 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.bumptech.glide.Glide;
-import com.google.android.gms.maps.CameraUpdateFactory;
-import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.material.button.MaterialButton;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-public class MovieDetailActivity extends AppCompatActivity implements OnMapReadyCallback {
-    private SupportMapFragment mapFragment;
+public class MovieDetailActivity extends AppCompatActivity {
     private TextView descriptionTextView;
     private TextView Name;
     private TextView releaseDateTextView;
@@ -53,9 +46,18 @@ public class MovieDetailActivity extends AppCompatActivity implements OnMapReady
     private String trailerKey;
     private RequestQueue requestQueue;
     private Button playButton;
-    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
-    private GoogleMap mMap;
-    private List<LatLng> cinemaLocations = new ArrayList<>();
+    private MaterialButton addToMyListButton;
+    private RecyclerView recyclerViewSimilar;
+    private SimilarMoviesAdapter similarMoviesAdapter;
+    private List<MyMovieData> similarMoviesList = new ArrayList<>();
+
+    private FirebaseFirestore db;
+    private FirebaseUser currentUser;
+    private int currentMovieId;
+    private String currentMovieName;
+    private String currentMovieDate;
+    private String currentPosterPath;
+    private boolean isInMyList = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,33 +72,111 @@ public class MovieDetailActivity extends AppCompatActivity implements OnMapReady
         voteCountTextView = findViewById(R.id.voteCount);
         ratingBar = findViewById(R.id.movieRating);
         playButton = findViewById(R.id.playButton);
+        addToMyListButton = findViewById(R.id.addToMyListButton);
+        recyclerViewSimilar = findViewById(R.id.recyclerViewSimilarMovies);
+
+        recyclerViewSimilar.setLayoutManager(new GridLayoutManager(this, 3));
+        similarMoviesAdapter = new SimilarMoviesAdapter(similarMoviesList, this);
+        recyclerViewSimilar.setAdapter(similarMoviesAdapter);
+
+        db = FirebaseFirestore.getInstance();
+        currentUser = FirebaseAuth.getInstance().getCurrentUser();
 
         requestQueue = Volley.newRequestQueue(this);
 
-        int movieId = getIntent().getIntExtra("movieId", -1);
-        if (movieId != -1) {
-            fetchMovieDetails(movieId);
+        currentMovieId = getIntent().getIntExtra("movieId", -1);
+        if (currentMovieId != -1) {
+            fetchMovieDetails(currentMovieId);
+            fetchSimilarMovies(currentMovieId);
+            checkIfInMyList(currentMovieId);
         } else {
             descriptionTextView.setText("No movie ID provided");
         }
 
-        playButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (trailerKey != null && !trailerKey.isEmpty()) {
-                    String trailerUrl = "https://www.youtube.com/watch?v=" + trailerKey;
-                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(trailerUrl));
-                    startActivity(intent);
-                } else {
-                    Toast.makeText(MovieDetailActivity.this, "Bande-annonce non disponible", Toast.LENGTH_SHORT).show();
-                }
+        playButton.setOnClickListener(v -> {
+            if (trailerKey != null && !trailerKey.isEmpty()) {
+                String trailerUrl = "https://www.youtube.com/watch?v=" + trailerKey;
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(trailerUrl));
+                startActivity(intent);
+            } else {
+                Toast.makeText(MovieDetailActivity.this, "Bande-annonce non disponible", Toast.LENGTH_SHORT).show();
             }
         });
 
-        cinemaLocations.add(new LatLng(33.596460, -7.615480));
-        mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
-        if (mapFragment != null) {
-            mapFragment.getMapAsync(this);
+        addToMyListButton.setOnClickListener(v -> toggleMyList());
+    }
+
+    private void checkIfInMyList(int movieId) {
+        if (currentUser == null) return;
+        db.collection("users")
+                .document(currentUser.getUid())
+                .collection("myList")
+                .document(String.valueOf(movieId))
+                .get()
+                .addOnSuccessListener(document -> {
+                    isInMyList = document.exists();
+                    updateMyListButton();
+                });
+    }
+
+    private void toggleMyList() {
+        if (currentUser == null) {
+            Toast.makeText(this, "Connectez-vous pour gérer votre liste", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (isInMyList) {
+            removeFromMyList();
+        } else {
+            addToMyList();
+        }
+    }
+
+    private void addToMyList() {
+        Map<String, Object> movieData = new HashMap<>();
+        movieData.put("movieId", currentMovieId);
+        movieData.put("movieName", currentMovieName);
+        movieData.put("movieDate", currentMovieDate);
+        movieData.put("posterPath", currentPosterPath);
+        movieData.put("addedAt", com.google.firebase.Timestamp.now());
+
+        db.collection("users")
+                .document(currentUser.getUid())
+                .collection("myList")
+                .document(String.valueOf(currentMovieId))
+                .set(movieData)
+                .addOnSuccessListener(aVoid -> {
+                    isInMyList = true;
+                    updateMyListButton();
+                    Toast.makeText(this, currentMovieName + " ajouté à Ma Liste", Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> Toast.makeText(this, "Erreur : " + e.getMessage(), Toast.LENGTH_SHORT).show());
+    }
+
+    private void removeFromMyList() {
+        db.collection("users")
+                .document(currentUser.getUid())
+                .collection("myList")
+                .document(String.valueOf(currentMovieId))
+                .delete()
+                .addOnSuccessListener(aVoid -> {
+                    isInMyList = false;
+                    updateMyListButton();
+                    Toast.makeText(this, currentMovieName + " retiré de Ma Liste", Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> Toast.makeText(this, "Erreur : " + e.getMessage(), Toast.LENGTH_SHORT).show());
+    }
+
+    private void updateMyListButton() {
+        if (isInMyList) {
+            addToMyListButton.setText(getString(R.string.remove_from_my_list));
+            addToMyListButton.setStrokeColorResource(R.color.netflix_red);
+            addToMyListButton.setTextColor(getResources().getColor(R.color.netflix_red, null));
+            addToMyListButton.setIconTintResource(R.color.netflix_red);
+        } else {
+            addToMyListButton.setText(getString(R.string.add_to_my_list));
+            addToMyListButton.setStrokeColorResource(android.R.color.white);
+            addToMyListButton.setTextColor(getResources().getColor(android.R.color.white, null));
+            addToMyListButton.setIconTintResource(android.R.color.white);
         }
     }
 
@@ -108,24 +188,22 @@ public class MovieDetailActivity extends AppCompatActivity implements OnMapReady
         JsonObjectRequest movieDetailsRequest = new JsonObjectRequest(Request.Method.GET, movieDetailsUrl, null,
                 response -> {
                     try {
-                        String movieName = response.getString("title");
+                        currentMovieName = response.getString("title");
                         String movieDescription = response.getString("overview");
-                        String releaseDate = response.optString("release_date", "N/A");
+                        currentMovieDate = response.optString("release_date", "N/A");
                         boolean isAdult = response.optBoolean("adult", false);
                         double voteAverage = response.optDouble("vote_average", 0.0);
                         int voteCount = response.optInt("vote_count", 0);
-                        String imageUrl = "https://image.tmdb.org/t/p/w500" + response.getString("poster_path");
+                        currentPosterPath = response.optString("poster_path", "");
+                        String imageUrl = "https://image.tmdb.org/t/p/w500" + currentPosterPath;
 
-                        Name.setText(movieName);
+                        Name.setText(currentMovieName);
                         descriptionTextView.setText(movieDescription);
-                        releaseDateTextView.setText(releaseDate);
-                        
-                        // Set Rating and Vote Count
+                        releaseDateTextView.setText(currentMovieDate);
+
                         ratingBar.setRating((float) (voteAverage / 2.0));
                         voteCountTextView.setText(getString(R.string.vote_count_format, voteCount));
-                        
-                        // Rating bar color is set to white in XML
-                        
+
                         if (isAdult) {
                             adultRatingTextView.setText("+18");
                             adultRatingTextView.setBackgroundResource(android.R.color.holo_red_dark);
@@ -164,46 +242,75 @@ public class MovieDetailActivity extends AppCompatActivity implements OnMapReady
         requestQueue.add(movieVideosRequest);
     }
 
-    @Override
-    public void onMapReady(GoogleMap googleMap) {
-        mMap = googleMap;
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            mMap.setMyLocationEnabled(true);
-            LatLng cinemaLocation = new LatLng(33.596460, -7.615480);
-            addCinemaMarker(cinemaLocation);
-            moveToCurrentLocation();
-        } else {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST_CODE);
+    private void fetchSimilarMovies(int movieId) {
+        String TMDB_API_KEY = "ce601ad5b7a468bf65223a10b811735b";
+        String similarMoviesUrl = "https://api.themoviedb.org/3/movie/" + movieId + "/similar?api_key=" + TMDB_API_KEY;
+
+        JsonObjectRequest similarMoviesRequest = new JsonObjectRequest(Request.Method.GET, similarMoviesUrl, null,
+                response -> {
+                    try {
+                        JSONArray results = response.getJSONArray("results");
+                        similarMoviesList.clear();
+                        for (int i = 0; i < Math.min(results.length(), 12); i++) {
+                            JSONObject movieObj = results.getJSONObject(i);
+                            int id = movieObj.getInt("id");
+                            String title = movieObj.getString("title");
+                            String date = movieObj.optString("release_date", "");
+                            String posterPath = movieObj.optString("poster_path", "");
+
+                            similarMoviesList.add(new MyMovieData(id, title, date, posterPath));
+                        }
+                        similarMoviesAdapter.notifyDataSetChanged();
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }, error -> Log.e(TAG, "Error fetching similar movies: " + error.getMessage()));
+
+        requestQueue.add(similarMoviesRequest);
+    }
+
+    private class SimilarMoviesAdapter extends RecyclerView.Adapter<SimilarMoviesAdapter.ViewHolder> {
+        private List<MyMovieData> movies;
+        private Context context;
+
+        public SimilarMoviesAdapter(List<MyMovieData> movies, Context context) {
+            this.movies = movies;
+            this.context = context;
         }
-    }
 
-    private void addCinemaMarker(LatLng cinemaLocation) {
-        mMap.addMarker(new MarkerOptions().position(cinemaLocation).title("Cinema").snippet("Location of the cinema"));
-    }
-
-    private void moveToCurrentLocation() {
-        if (mMap == null) return;
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-            Location location = null;
-            try {
-                location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            } catch (SecurityException e) {
-                e.printStackTrace();
-                return;
-            }
-            if (location != null) {
-                LatLng currentLocation = new LatLng(location.getLatitude(), location.getLongitude());
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLocation, 15));
-            }
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_similar_movie, parent, false);
+            return new ViewHolder(view);
         }
-    }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            moveToCurrentLocation();
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            MyMovieData movie = movies.get(position);
+            Glide.with(context)
+                    .load("https://image.tmdb.org/t/p/w500" + movie.getMovieImage())
+                    .into(holder.imageView);
+
+            holder.itemView.setOnClickListener(v -> {
+                Intent intent = new Intent(context, MovieDetailActivity.class);
+                intent.putExtra("movieId", movie.getMovieId());
+                context.startActivity(intent);
+            });
+        }
+
+        @Override
+        public int getItemCount() {
+            return movies.size();
+        }
+
+        public class ViewHolder extends RecyclerView.ViewHolder {
+            ImageView imageView;
+
+            public ViewHolder(@NonNull View itemView) {
+                super(itemView);
+                imageView = itemView.findViewById(R.id.similarMoviePoster);
+            }
         }
     }
 }

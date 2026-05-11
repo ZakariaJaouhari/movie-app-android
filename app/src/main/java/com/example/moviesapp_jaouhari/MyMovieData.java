@@ -10,6 +10,7 @@ public class MyMovieData {
     private int movieId;
     private List<Integer> genreIds;
     private String genreNames;
+    private String backdropPath;
 
     public MyMovieData(int movieId, String movieName, String movieDate, String movieImage) {
         this.movieName = movieName;
@@ -60,5 +61,13 @@ public class MyMovieData {
 
     public void setGenreNames(String genreNames) {
         this.genreNames = genreNames;
+    }
+
+    public String getBackdropPath() {
+        return backdropPath != null ? backdropPath : "";
+    }
+
+    public void setBackdropPath(String backdropPath) {
+        this.backdropPath = backdropPath;
     }
 }

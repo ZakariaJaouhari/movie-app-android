@@ -8,4 +8,11 @@
     <string name="movie_poster_description">Movie Poster</string>
     <string name="vote_count_format">(%1$d votes)</string>
     <string name="google_maps_preview">Google Maps Preview</string>
+    <string name="similar_movies">Films Similaires</string>
+    <string name="tab_home">Accueil</string>
+    <string name="tab_coming_soon">Tout Nouveau</string>
+    <string name="tab_my_list">Ma Liste</string>
+    <string name="add_to_my_list">+ Ma Liste</string>
+    <string name="remove_from_my_list">✓ Ma Liste</string>
+    <string name="my_list_empty">Votre liste est vide.\nAjoutez des films depuis leur page de détails.</string>
 </resources>
