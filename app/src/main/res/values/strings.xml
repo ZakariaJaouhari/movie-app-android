@@ -15,4 +15,5 @@
     <string name="add_to_my_list">+ Ma Liste</string>
     <string name="remove_from_my_list">✓ Ma Liste</string>
     <string name="my_list_empty">Votre liste est vide.\nAjoutez des films depuis leur page de détails.</string>
+    <string name="tab_profile">Profil</string>
 </resources>

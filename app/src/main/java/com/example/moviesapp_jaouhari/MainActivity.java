@@ -1,11 +1,16 @@
 package com.example.moviesapp_jaouhari;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.net.Uri;
+import android.widget.ScrollView;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -16,6 +21,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.widget.NestedScrollView;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
@@ -42,6 +48,47 @@ import java.util.Map;
 public class MainActivity extends AppCompatActivity {
     private static final String TMDB_API_KEY = "ce601ad5b7a468bf65223a10b811735b";
     private static final String TAG = "MainActivity";
+    private static final String GROQ_API_KEY = BuildConfig.GROQ_API_KEY;
+    private static final String GROQ_RECO_PROMPT =
+        "Tu analyses une liste de films ou séries aimés par un utilisateur et tu retournes UNIQUEMENT un tableau JSON " +
+        "de recommandations, sans markdown ni texte autour.\n\n" +
+        "Format strict de chaque élément :\n" +
+        "{\n" +
+        "  \"explanation\": \"Parce que tu aimes [titre précis ou genre récurrent de la liste]\",\n" +
+        "  \"media_type\": \"movie\" ou \"tv\",\n" +
+        "  \"with_genres\": \"53,9648\",\n" +
+        "  \"sort_by\": \"popularity.desc\",\n" +
+        "  \"vote_average_gte\": 7.0,\n" +
+        "  \"with_original_language\": \"en\"\n" +
+        "}\n\n" +
+        "Règles :\n" +
+        "- Génère exactement le nombre de catégories demandé dans le message utilisateur\n" +
+        "- Chaque catégorie doit avoir des genres différents des autres\n" +
+        "- Tous les éléments doivent avoir le même media_type que demandé\n" +
+        "- explanation : phrase courte (ex: \"Parce que tu aimes Inception\", \"Parce que tu adores les thrillers\")\n" +
+        "- with_genres : IDs TMDB séparés par virgule, max 2 genres\n" +
+        "- sort_by : \"popularity.desc\" ou \"vote_average.desc\"\n" +
+        "- vote_average_gte : optionnel, entre 6.0 et 8.0\n" +
+        "- with_original_language : optionnel\n\n" +
+        "Genres films: 28=Action,12=Aventure,16=Animation,35=Comédie,80=Crime,18=Drame,14=Fantastique,27=Horreur,9648=Mystère,10749=Romance,878=Science-Fiction,53=Thriller,10752=Guerre,37=Western\n" +
+        "Genres séries: 10759=Action,16=Animation,35=Comédie,80=Crime,18=Drame,9648=Mystère,10765=Sci-Fi & Fantastique";
+    private static final String GROQ_SYSTEM_PROMPT =
+        "Tu analyses des requêtes de recherche de films/séries et retournes UNIQUEMENT un objet JSON valide, sans markdown ni texte autour.\n\n" +
+        "Champs disponibles (tous optionnels) :\n" +
+        "- use_search: boolean (true=chercher par titre exact, false=filtrer par paramètres)\n" +
+        "- query: string (si use_search=true, mots-clés pour TMDB)\n" +
+        "- media_type: \"movie\" ou \"tv\"\n" +
+        "- with_genres: string (IDs genres séparés par virgule)\n" +
+        "- year: number (année de sortie)\n" +
+        "- with_original_language: string (code ISO: ja, fr, en, ko, es, it, hi)\n" +
+        "- sort_by: \"popularity.desc\" | \"vote_average.desc\" | \"release_date.desc\"\n" +
+        "- vote_average_gte: number\n\n" +
+        "Genres films: 28=Action,12=Aventure,16=Animation,35=Comédie,80=Crime,18=Drame,14=Fantastique,27=Horreur,9648=Mystère,10749=Romance,878=Science-Fiction,53=Thriller,10752=Guerre,37=Western\n" +
+        "Genres séries: 10759=Action,16=Animation,35=Comédie,80=Crime,18=Drame,9648=Mystère,10765=Sci-Fi & Fantastique,37=Western\n\n" +
+        "Exemples :\n" +
+        "\"film d'horreur japonais\" → {\"use_search\":false,\"media_type\":\"movie\",\"with_genres\":\"27\",\"with_original_language\":\"ja\",\"sort_by\":\"popularity.desc\"}\n" +
+        "\"comédie romantique française des années 2000\" → {\"use_search\":false,\"media_type\":\"movie\",\"with_genres\":\"35,10749\",\"with_original_language\":\"fr\",\"year\":2000,\"sort_by\":\"popularity.desc\"}\n" +
+        "\"Inception\" → {\"use_search\":true,\"query\":\"Inception\"}";
 
     // Film genre definitions
     private static final int[] MOVIE_GENRE_IDS = {28, 35, 18, 27, 878, 53, 12, 16};
@@ -66,7 +113,13 @@ public class MainActivity extends AppCompatActivity {
     private ImageView logoutIcon;
     private BottomNavigationView bottomNavigationView;
     private NestedScrollView homeContentScrollView;
-    private LinearLayout myListView;
+    private NestedScrollView myListView;
+    private ScrollView profileView;
+    private TextView profileAvatar;
+    private TextView profileName;
+    private TextView profileEmail;
+    private android.widget.Button btnLogout;
+    private android.widget.Button btnDeleteAccount;
     private TextView myListEmptyText;
     private RecyclerView myListRecyclerView;
     private LinearLayout comingSoonView;
@@ -94,6 +147,26 @@ public class MainActivity extends AppCompatActivity {
     private CarouselAdapter tvCarouselAdapter;
     private TrendingAdapter tvTrendingAdapter;
     private ActionAdapter tvTopRatedAdapter;
+
+    // Home recommendations
+    private LinearLayout homeRecommendationsContainer;
+    private LinearLayout tvRecommendationsContainer;
+    private final java.util.Set<String> lastMovieTitles = new java.util.HashSet<>();
+    private final java.util.Set<String> lastTvTitles = new java.util.HashSet<>();
+
+    // Search
+    private LinearLayout searchResultsView;
+    private RecyclerView searchResultsRecyclerView;
+    private TextView searchStatusText;
+    private final List<MyMovieData> searchResults = new ArrayList<>();
+    private GenreGridAdapter searchAdapter;
+    private final Handler searchHandler = new Handler(Looper.getMainLooper());
+    private Runnable searchRunnable;
+
+    interface ClaudeCallback {
+        void onSuccess(JSONObject params);
+        void onError();
+    }
 
     // Data lists
     private final List<MyMovieData> heroMovies = new ArrayList<>();
@@ -141,6 +214,7 @@ public class MainActivity extends AppCompatActivity {
         setupTabButtons();
         setupHeroAutoScroll();
         createMovieGenreSections();
+        setupProfile();
     }
 
     private void bindViews() {
@@ -166,6 +240,17 @@ public class MainActivity extends AppCompatActivity {
         tvGenreSectionsContainer = findViewById(R.id.tvGenreSectionsContainer);
         btnFilms = findViewById(R.id.btnFilms);
         btnSeries = findViewById(R.id.btnSeries);
+        searchResultsView = findViewById(R.id.searchResultsView);
+        searchResultsRecyclerView = findViewById(R.id.searchResultsRecyclerView);
+        searchStatusText = findViewById(R.id.searchStatusText);
+        homeRecommendationsContainer = findViewById(R.id.homeRecommendationsContainer);
+        tvRecommendationsContainer = findViewById(R.id.tvRecommendationsContainer);
+        profileView = findViewById(R.id.profileView);
+        profileAvatar = findViewById(R.id.profileAvatar);
+        profileName = findViewById(R.id.profileName);
+        profileEmail = findViewById(R.id.profileEmail);
+        btnLogout = findViewById(R.id.btnLogout);
+        btnDeleteAccount = findViewById(R.id.btnDeleteAccount);
     }
 
     private void setupAdapters() {
@@ -192,6 +277,7 @@ public class MainActivity extends AppCompatActivity {
         comingSoonAdapter = new ComingSoonAdapter(comingSoonMovies, this);
         comingSoonRecyclerView.setAdapter(comingSoonAdapter);
 
+
         setupTvAdapters();
     }
 
@@ -213,6 +299,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        loadHomeRecommendations();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         heroAutoScrollHandler.removeCallbacksAndMessages(null);
@@ -221,6 +313,10 @@ public class MainActivity extends AppCompatActivity {
     // ─── Search ──────────────────────────────────────────────────────────────
 
     private void setupSearchBar() {
+        searchAdapter = new GenreGridAdapter(searchResults, this, false);
+        searchResultsRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
+        searchResultsRecyclerView.setAdapter(searchAdapter);
+
         searchIcon.setOnClickListener(v -> {
             if (searchEditText.getVisibility() == View.GONE) {
                 searchEditText.setVisibility(View.VISIBLE);
@@ -228,6 +324,24 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 searchEditText.setVisibility(View.GONE);
                 searchEditText.setText("");
+                hideSearchResults();
+            }
+        });
+
+        searchEditText.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void afterTextChanged(Editable s) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (searchRunnable != null) searchHandler.removeCallbacks(searchRunnable);
+                String query = s.toString().trim();
+                if (query.isEmpty()) {
+                    hideSearchResults();
+                    return;
+                }
+                searchRunnable = () -> performSearch(query);
+                searchHandler.postDelayed(searchRunnable, 400);
             }
         });
 
@@ -236,6 +350,198 @@ public class MainActivity extends AppCompatActivity {
             startActivity(new Intent(MainActivity.this, LoginActivity.class));
             finish();
         });
+    }
+
+    private void performSearch(String query) {
+        showSearchResults();
+        setSearchStatus("IA en cours d'analyse...", true);
+        callGroqForParams(query, new ClaudeCallback() {
+            @Override
+            public void onSuccess(JSONObject params) {
+                try {
+                    boolean useSearch = params.optBoolean("use_search", true);
+                    boolean isTV = "tv".equals(params.optString("media_type", "movie"));
+                    String url = buildTmdbUrl(params);
+                    Log.d(TAG, "TMDB URL: " + url);
+                    fetchSearchResults(url, useSearch, isTV);
+                } catch (JSONException e) {
+                    Log.e(TAG, "Claude params error: " + e.getMessage());
+                    fallbackSearch(query);
+                }
+            }
+
+            @Override
+            public void onError() {
+                Toast.makeText(MainActivity.this, "IA indisponible, recherche classique...", Toast.LENGTH_SHORT).show();
+                fallbackSearch(query);
+            }
+        });
+    }
+
+    private void callGroqForParams(String query, ClaudeCallback callback) {
+        String url = "https://api.groq.com/openai/v1/chat/completions";
+        try {
+            JSONObject systemMsg = new JSONObject();
+            systemMsg.put("role", "system");
+            systemMsg.put("content", GROQ_SYSTEM_PROMPT);
+
+            JSONObject userMsg = new JSONObject();
+            userMsg.put("role", "user");
+            userMsg.put("content", query);
+
+            JSONObject body = new JSONObject();
+            body.put("model", "llama-3.1-8b-instant");
+            body.put("max_tokens", 256);
+            body.put("temperature", 0);
+            body.put("messages", new JSONArray().put(systemMsg).put(userMsg));
+
+            JsonObjectRequest req = new JsonObjectRequest(Request.Method.POST, url, body,
+                    response -> {
+                        try {
+                            String text = response
+                                    .getJSONArray("choices")
+                                    .getJSONObject(0)
+                                    .getJSONObject("message")
+                                    .getString("content").trim();
+                            Log.d(TAG, "Groq raw response: " + text);
+                            text = text.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
+                            callback.onSuccess(new JSONObject(text));
+                        } catch (JSONException e) {
+                            Log.e(TAG, "Groq parse error: " + e.getMessage());
+                            callback.onError();
+                        }
+                    },
+                    error -> {
+                        String details = error.toString();
+                        if (error.networkResponse != null) {
+                            details += " | HTTP " + error.networkResponse.statusCode;
+                            if (error.networkResponse.data != null)
+                                details += " | " + new String(error.networkResponse.data);
+                        }
+                        Log.e(TAG, "Groq API error: " + details);
+                        callback.onError();
+                    }) {
+                @Override
+                public Map<String, String> getHeaders() {
+                    Map<String, String> headers = new HashMap<>();
+                    headers.put("Authorization", "Bearer " + GROQ_API_KEY);
+                    headers.put("Content-Type", "application/json");
+                    return headers;
+                }
+            };
+            queue.add(req);
+        } catch (JSONException e) {
+            Log.e(TAG, "Groq request build error: " + e.getMessage());
+            callback.onError();
+        }
+    }
+
+    private String buildTmdbUrl(JSONObject params) throws JSONException {
+        boolean useSearch = params.optBoolean("use_search", true);
+        String mediaType = params.optString("media_type", "movie");
+        boolean isTV = "tv".equals(mediaType);
+
+        if (useSearch) {
+            String q = params.optString("query", "");
+            return "https://api.themoviedb.org/3/search/multi?api_key=" + TMDB_API_KEY
+                    + "&language=fr-FR&query=" + Uri.encode(q);
+        }
+
+        String base = isTV
+                ? "https://api.themoviedb.org/3/discover/tv"
+                : "https://api.themoviedb.org/3/discover/movie";
+
+        StringBuilder url = new StringBuilder(base)
+                .append("?api_key=").append(TMDB_API_KEY)
+                .append("&language=fr-FR")
+                .append("&sort_by=").append(params.optString("sort_by", "popularity.desc"));
+
+        if (params.has("with_genres"))
+            url.append("&with_genres=").append(params.getString("with_genres").replace(" ", ""));
+        if (params.has("year") && !isTV)
+            url.append("&primary_release_year=").append(params.getInt("year"));
+        if (params.has("year") && isTV)
+            url.append("&first_air_date_year=").append(params.getInt("year"));
+        if (params.has("with_original_language"))
+            url.append("&with_original_language=").append(params.getString("with_original_language"));
+        if (params.has("vote_average_gte"))
+            url.append("&vote_average.gte=").append(params.getDouble("vote_average_gte"));
+
+        return url.toString();
+    }
+
+    private void fetchSearchResults(String url, boolean isMultiSearch, boolean isTV) {
+        JsonObjectRequest req = new JsonObjectRequest(Request.Method.GET, url, null,
+                response -> {
+                    try {
+                        JSONArray results = response.getJSONArray("results");
+                        searchResults.clear();
+                        for (int i = 0; i < results.length(); i++) {
+                            JSONObject obj = results.getJSONObject(i);
+                            boolean tv;
+                            if (isMultiSearch) {
+                                String mediaType = obj.optString("media_type", "movie");
+                                if ("person".equals(mediaType)) continue;
+                                tv = "tv".equals(mediaType);
+                            } else {
+                                tv = isTV;
+                            }
+                            String title = tv
+                                    ? obj.optString("name", obj.optString("title", ""))
+                                    : obj.optString("title", obj.optString("name", ""));
+                            String date = tv
+                                    ? obj.optString("first_air_date", "")
+                                    : obj.optString("release_date", "");
+                            MyMovieData item = new MyMovieData(
+                                    obj.getInt("id"), title, date, obj.optString("poster_path", ""));
+                            item.setTV(tv);
+                            searchResults.add(item);
+                        }
+                        searchAdapter.notifyDataSetChanged();
+                        if (searchResults.isEmpty()) {
+                            setSearchStatus("Aucun résultat trouvé", true);
+                        } else {
+                            setSearchStatus("", false);
+                        }
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Fetch results error: " + e.getMessage());
+                        setSearchStatus("Erreur lors de la recherche", true);
+                    }
+                }, error -> {
+            Log.e(TAG, "Fetch results error: " + error.getMessage());
+            setSearchStatus("Erreur lors de la recherche", true);
+        });
+        queue.add(req);
+    }
+
+    private void fallbackSearch(String query) {
+        String url = "https://api.themoviedb.org/3/search/multi?api_key=" + TMDB_API_KEY
+                + "&language=fr-FR&query=" + Uri.encode(query);
+        fetchSearchResults(url, true, false);
+    }
+
+    private void setSearchStatus(String message, boolean visible) {
+        if (visible && !message.isEmpty()) {
+            searchStatusText.setText(message);
+            searchStatusText.setVisibility(View.VISIBLE);
+            searchResultsRecyclerView.setVisibility(View.GONE);
+        } else {
+            searchStatusText.setVisibility(View.GONE);
+            searchResultsRecyclerView.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void showSearchResults() {
+        searchResultsView.setVisibility(View.VISIBLE);
+        homeContentScrollView.setVisibility(View.GONE);
+        seriesContentScrollView.setVisibility(View.GONE);
+        comingSoonView.setVisibility(View.GONE);
+        myListView.setVisibility(View.GONE);
+    }
+
+    private void hideSearchResults() {
+        searchResultsView.setVisibility(View.GONE);
+        showHomeContent();
     }
 
     // ─── Bottom navigation ────────────────────────────────────────────────────
@@ -250,6 +556,7 @@ public class MainActivity extends AppCompatActivity {
                 seriesContentScrollView.setVisibility(View.GONE);
                 comingSoonView.setVisibility(View.VISIBLE);
                 myListView.setVisibility(View.GONE);
+                profileView.setVisibility(View.GONE);
                 tabAndFilterRow.setVisibility(View.GONE);
                 if (!comingSoonLoaded) {
                     fetchComingSoonMovies();
@@ -260,9 +567,18 @@ public class MainActivity extends AppCompatActivity {
                 homeContentScrollView.setVisibility(View.GONE);
                 seriesContentScrollView.setVisibility(View.GONE);
                 comingSoonView.setVisibility(View.GONE);
+                profileView.setVisibility(View.GONE);
                 myListView.setVisibility(View.VISIBLE);
                 tabAndFilterRow.setVisibility(View.GONE);
                 loadMyList();
+                return true;
+            } else if (item.getItemId() == R.id.nav_profile) {
+                homeContentScrollView.setVisibility(View.GONE);
+                seriesContentScrollView.setVisibility(View.GONE);
+                comingSoonView.setVisibility(View.GONE);
+                myListView.setVisibility(View.GONE);
+                profileView.setVisibility(View.VISIBLE);
+                tabAndFilterRow.setVisibility(View.GONE);
                 return true;
             }
             return false;
@@ -295,6 +611,7 @@ public class MainActivity extends AppCompatActivity {
         data.put("movieName", movie.getMovieName());
         data.put("movieDate", movie.getMovieDate());
         data.put("posterPath", movie.getMovieImage());
+        data.put("isTV", movie.isTV());
         data.put("addedAt", com.google.firebase.Timestamp.now());
 
         db.collection("users").document(currentUser.getUid())
@@ -466,6 +783,248 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(this, "Impossible de charger la liste", Toast.LENGTH_SHORT).show());
     }
 
+    // ─── Profil ──────────────────────────────────────────────────────────────
+
+    private void setupProfile() {
+        if (currentUser == null) return;
+
+        // Infos utilisateur
+        String email = currentUser.getEmail() != null ? currentUser.getEmail() : "";
+        String displayName = currentUser.getDisplayName();
+        if (displayName == null || displayName.isEmpty()) {
+            displayName = email.contains("@") ? email.substring(0, email.indexOf("@")) : email;
+        }
+        profileName.setText(displayName);
+        profileEmail.setText(email);
+
+        // Avatar : initiale du nom
+        String initial = displayName.isEmpty() ? "?" : String.valueOf(displayName.charAt(0)).toUpperCase();
+        profileAvatar.setText(initial);
+
+        // Déconnexion
+        btnLogout.setOnClickListener(v -> {
+            FirebaseAuth.getInstance().signOut();
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+        });
+
+        // Suppression du compte
+        btnDeleteAccount.setOnClickListener(v -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("Supprimer le compte")
+                    .setMessage("Es-tu sûr(e) de vouloir supprimer ton compte ? Toutes tes données seront perdues. Cette action est irréversible.")
+                    .setPositiveButton("Supprimer", (dialog, which) -> deleteAccount())
+                    .setNegativeButton("Annuler", null)
+                    .setIcon(android.R.drawable.ic_dialog_alert)
+                    .show();
+        });
+    }
+
+    private void deleteAccount() {
+        if (currentUser == null) return;
+        String uid = currentUser.getUid();
+
+        // Supprimer les données Firestore puis le compte Auth
+        db.collection("users").document(uid).collection("myList")
+                .get()
+                .addOnSuccessListener(snapshots -> {
+                    for (QueryDocumentSnapshot doc : snapshots) doc.getReference().delete();
+                    db.collection("users").document(uid).delete();
+                    currentUser.delete()
+                            .addOnSuccessListener(v -> {
+                                Toast.makeText(this, "Compte supprimé", Toast.LENGTH_SHORT).show();
+                                startActivity(new Intent(this, LoginActivity.class));
+                                finish();
+                            })
+                            .addOnFailureListener(e -> {
+                                Toast.makeText(this, "Erreur : reconnecte-toi et réessaie", Toast.LENGTH_LONG).show();
+                                Log.e(TAG, "Delete account error: " + e.getMessage());
+                            });
+                });
+    }
+
+    // ─── Recommandations IA sur l'accueil ────────────────────────────────────
+
+    private void loadHomeRecommendations() {
+        if (currentUser == null) return;
+        db.collection("users").document(currentUser.getUid()).collection("myList")
+                .get()
+                .addOnSuccessListener(snapshots -> {
+                    List<String> movieTitles = new ArrayList<>();
+                    List<String> tvTitles = new ArrayList<>();
+                    for (QueryDocumentSnapshot doc : snapshots) {
+                        String name = doc.getString("movieName");
+                        if (name == null) continue;
+                        Boolean isTv = doc.getBoolean("isTV");
+                        if (Boolean.TRUE.equals(isTv)) tvTitles.add(name);
+                        else movieTitles.add(name);
+                    }
+
+                    java.util.Set<String> newMovieTitles = new java.util.HashSet<>(movieTitles);
+                    java.util.Set<String> newTvTitles = new java.util.HashSet<>(tvTitles);
+
+                    boolean moviesChanged = !newMovieTitles.equals(lastMovieTitles);
+                    boolean tvChanged = !newTvTitles.equals(lastTvTitles);
+
+                    lastMovieTitles.clear();
+                    lastMovieTitles.addAll(newMovieTitles);
+                    lastTvTitles.clear();
+                    lastTvTitles.addAll(newTvTitles);
+
+                    if (!movieTitles.isEmpty() && moviesChanged) {
+                        int count = Math.min(movieTitles.size(), 3);
+                        callGroqForCategory(movieTitles, false, count, homeRecommendationsContainer);
+                    }
+                    if (!tvTitles.isEmpty() && tvChanged) {
+                        int count = Math.min(tvTitles.size(), 3);
+                        callGroqForCategory(tvTitles, true, count, tvRecommendationsContainer);
+                    }
+                });
+    }
+
+    private void callGroqForCategory(List<String> titles, boolean isTV, int count, LinearLayout container) {
+        String listStr = String.join(", ", titles.subList(0, Math.min(titles.size(), 10)));
+        String mediaLabel = isTV ? "séries" : "films";
+        String url = "https://api.groq.com/openai/v1/chat/completions";
+        try {
+            JSONObject systemMsg = new JSONObject();
+            systemMsg.put("role", "system");
+            systemMsg.put("content", GROQ_RECO_PROMPT);
+
+            JSONObject userMsg = new JSONObject();
+            userMsg.put("role", "user");
+            userMsg.put("content",
+                "Ma liste de " + mediaLabel + " : " + listStr + "\n" +
+                "Génère exactement " + count + " catégorie(s) de type \"" + (isTV ? "tv" : "movie") + "\".");
+
+            JSONObject body = new JSONObject();
+            body.put("model", "llama-3.1-8b-instant");
+            body.put("max_tokens", 500);
+            body.put("temperature", 0.3);
+            body.put("messages", new JSONArray().put(systemMsg).put(userMsg));
+
+            JsonObjectRequest req = new JsonObjectRequest(Request.Method.POST, url, body,
+                    response -> {
+                        try {
+                            String text = response
+                                    .getJSONArray("choices").getJSONObject(0)
+                                    .getJSONObject("message").getString("content").trim();
+                            text = text.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
+                            Log.d(TAG, "Groq reco (" + mediaLabel + "): " + text);
+                            JSONArray categories = new JSONArray(text);
+                            container.setVisibility(View.VISIBLE);
+                            container.removeAllViews();
+                            for (int i = 0; i < categories.length(); i++) {
+                                buildRecommendationSection(categories.getJSONObject(i), container);
+                            }
+                        } catch (JSONException e) {
+                            Log.e(TAG, "Groq reco parse error: " + e.getMessage());
+                        }
+                    },
+                    error -> Log.e(TAG, "Groq reco error: " + error.toString())) {
+                @Override
+                public Map<String, String> getHeaders() {
+                    Map<String, String> headers = new HashMap<>();
+                    headers.put("Authorization", "Bearer " + GROQ_API_KEY);
+                    headers.put("Content-Type", "application/json");
+                    return headers;
+                }
+            };
+            queue.add(req);
+        } catch (JSONException e) {
+            Log.e(TAG, "Groq reco request error: " + e.getMessage());
+        }
+    }
+
+    private void buildRecommendationSection(JSONObject category, LinearLayout container) throws JSONException {
+        String explanation = category.optString("explanation", "Pour vous");
+        boolean isTV = "tv".equals(category.optString("media_type", "movie"));
+
+        // Section container
+        LinearLayout section = new LinearLayout(this);
+        LinearLayout.LayoutParams sectionParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        sectionParams.setMargins(0, 0, 0, dpToPx(20));
+        section.setLayoutParams(sectionParams);
+        section.setOrientation(LinearLayout.VERTICAL);
+
+        // Titre = explication
+        TextView titleView = new TextView(this);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        titleView.setLayoutParams(titleParams);
+        titleView.setText(explanation);
+        titleView.setTextColor(android.graphics.Color.WHITE);
+        titleView.setTextSize(15);
+        titleView.setTypeface(null, android.graphics.Typeface.BOLD);
+        titleView.setPadding(dpToPx(12), 0, dpToPx(12), dpToPx(10));
+
+        // RecyclerView horizontal
+        RecyclerView rv = new RecyclerView(this);
+        LinearLayout.LayoutParams rvParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dpToPx(220));
+        rv.setLayoutParams(rvParams);
+        rv.setPadding(dpToPx(12), 0, dpToPx(12), 0);
+        rv.setClipToPadding(false);
+        rv.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        rv.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+
+        section.addView(titleView);
+        section.addView(rv);
+        container.addView(section);
+
+        // Charger les 10 films depuis TMDB discover
+        fetchRecommendationCategory(category, isTV, rv);
+    }
+
+    private void fetchRecommendationCategory(JSONObject category, boolean isTV, RecyclerView rv) {
+        String base = isTV
+                ? "https://api.themoviedb.org/3/discover/tv"
+                : "https://api.themoviedb.org/3/discover/movie";
+
+        StringBuilder url = new StringBuilder(base)
+                .append("?api_key=").append(TMDB_API_KEY)
+                .append("&language=fr-FR")
+                .append("&sort_by=").append(category.optString("sort_by", "popularity.desc"))
+                .append("&page=1");
+
+        if (category.has("with_genres"))
+            url.append("&with_genres=").append(category.optString("with_genres", "").replace(" ", ""));
+        if (category.has("with_original_language"))
+            url.append("&with_original_language=").append(category.optString("with_original_language"));
+        if (category.has("vote_average_gte"))
+            url.append("&vote_average.gte=").append(category.optDouble("vote_average_gte", 6.0));
+
+        Log.d(TAG, "Reco category URL: " + url);
+
+        JsonObjectRequest req = new JsonObjectRequest(Request.Method.GET, url.toString(), null,
+                response -> {
+                    try {
+                        JSONArray results = response.getJSONArray("results");
+                        List<MyMovieData> items = new ArrayList<>();
+                        for (int i = 0; i < Math.min(results.length(), 10); i++) {
+                            JSONObject obj = results.getJSONObject(i);
+                            String title = isTV
+                                    ? obj.optString("name", obj.optString("title", ""))
+                                    : obj.optString("title", obj.optString("name", ""));
+                            String date = isTV
+                                    ? obj.optString("first_air_date", "")
+                                    : obj.optString("release_date", "");
+                            MyMovieData item = new MyMovieData(
+                                    obj.getInt("id"), title, date, obj.optString("poster_path", ""));
+                            item.setTV(isTV);
+                            items.add(item);
+                        }
+                        ActionAdapter adapter = new ActionAdapter(items, this);
+                        rv.setAdapter(adapter);
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Reco category fetch error: " + e.getMessage());
+                    }
+                },
+                error -> Log.e(TAG, "Reco category fetch error: " + error.toString()));
+        queue.add(req);
+    }
+
     // ─── Tab Films / Séries ──────────────────────────────────────────────────
 
     private void setupTabButtons() {
@@ -488,6 +1047,7 @@ public class MainActivity extends AppCompatActivity {
     private void showHomeContent() {
         comingSoonView.setVisibility(View.GONE);
         myListView.setVisibility(View.GONE);
+        profileView.setVisibility(View.GONE);
         tabAndFilterRow.setVisibility(View.VISIBLE);
         if (currentMediaTab == MediaTab.SERIES) {
             homeContentScrollView.setVisibility(View.GONE);

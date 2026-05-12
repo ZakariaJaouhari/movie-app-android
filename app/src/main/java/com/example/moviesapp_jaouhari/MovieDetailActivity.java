@@ -170,6 +170,7 @@ public class MovieDetailActivity extends AppCompatActivity {
         movieData.put("movieName", currentMovieName);
         movieData.put("movieDate", currentMovieDate);
         movieData.put("posterPath", currentPosterPath);
+        movieData.put("isTV", isTV);
         movieData.put("addedAt", com.google.firebase.Timestamp.now());
 
         db.collection("users")
