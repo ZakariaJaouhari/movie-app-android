@@ -1,8 +1,23 @@
 package com.example.moviesapp_jaouhari;
 
+import android.Manifest;
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.speech.RecognizerIntent;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.widget.ScrollView;
@@ -45,9 +60,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback {
     private static final String TMDB_API_KEY = "ce601ad5b7a468bf65223a10b811735b";
     private static final String TAG = "MainActivity";
+    private static final int VOICE_SEARCH_REQUEST_CODE = 1001;
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1002;
+    private static final String MAPS_API_KEY = "AIzaSyCk-lkzx1GeEAqTm1M9v8YYqkAK1biU530";
     private static final String GROQ_API_KEY = BuildConfig.GROQ_API_KEY;
     private static final String GROQ_RECO_PROMPT =
         "Tu analyses une liste de films ou séries aimés par un utilisateur et tu retournes UNIQUEMENT un tableau JSON " +
@@ -110,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView trendingRecyclerView;
     private EditText searchEditText;
     private ImageView searchIcon;
+    private ImageView micIcon;
     private ImageView logoutIcon;
     private BottomNavigationView bottomNavigationView;
     private NestedScrollView homeContentScrollView;
@@ -154,7 +173,19 @@ public class MainActivity extends AppCompatActivity {
     private final java.util.Set<String> lastMovieTitles = new java.util.HashSet<>();
     private final java.util.Set<String> lastTvTitles = new java.util.HashSet<>();
 
+    // Cinema
+    private LinearLayout cinemaView;
+    private com.google.android.gms.maps.MapView mapView;
+    private RecyclerView cinemaRecyclerView;
+    private GoogleMap googleMap;
+    private FusedLocationProviderClient fusedLocationClient;
+    private com.google.android.gms.location.LocationCallback locationCallback;
+    private boolean cinemaMapInitialized = false;
+    private final List<Cinema> cinemaList = new ArrayList<>();
+    private CinemaAdapter cinemaAdapter;
+
     // Search
+    private LinearLayout searchBarContainer;
     private LinearLayout searchResultsView;
     private RecyclerView searchResultsRecyclerView;
     private TextView searchStatusText;
@@ -202,6 +233,8 @@ public class MainActivity extends AppCompatActivity {
         queue = Volley.newRequestQueue(this);
         db = FirebaseFirestore.getInstance();
         currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        mapView.onCreate(savedInstanceState);
 
         bottomNavigationView.setItemActiveIndicatorEnabled(false);
 
@@ -218,8 +251,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void bindViews() {
+        cinemaView = findViewById(R.id.cinemaView);
+        mapView = findViewById(R.id.mapView);
+        cinemaRecyclerView = findViewById(R.id.cinemaRecyclerView);
+        searchBarContainer = findViewById(R.id.searchBarContainer);
         searchEditText = findViewById(R.id.editTextSearch);
         searchIcon = findViewById(R.id.imageSearchIcon);
+        micIcon = findViewById(R.id.imageMicIcon);
         logoutIcon = findViewById(R.id.logoutIcon);
         bottomNavigationView = findViewById(R.id.bottomNavigation);
         homeContentScrollView = findViewById(R.id.homeContentScrollView);
@@ -278,6 +316,16 @@ public class MainActivity extends AppCompatActivity {
         comingSoonRecyclerView.setAdapter(comingSoonAdapter);
 
 
+        cinemaRecyclerView.setLayoutManager(
+                new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        cinemaAdapter = new CinemaAdapter(cinemaList, this, cinema -> {
+            if (googleMap != null) {
+                LatLng pos = new LatLng(cinema.lat, cinema.lng);
+                googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(pos, 16f));
+            }
+        });
+        cinemaRecyclerView.setAdapter(cinemaAdapter);
+
         setupTvAdapters();
     }
 
@@ -301,13 +349,28 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        mapView.onResume();
         loadHomeRecommendations();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mapView.onPause();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         heroAutoScrollHandler.removeCallbacksAndMessages(null);
+        if (locationCallback != null) fusedLocationClient.removeLocationUpdates(locationCallback);
+        mapView.onDestroy();
+    }
+
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        mapView.onLowMemory();
     }
 
     // ─── Search ──────────────────────────────────────────────────────────────
@@ -318,11 +381,11 @@ public class MainActivity extends AppCompatActivity {
         searchResultsRecyclerView.setAdapter(searchAdapter);
 
         searchIcon.setOnClickListener(v -> {
-            if (searchEditText.getVisibility() == View.GONE) {
-                searchEditText.setVisibility(View.VISIBLE);
+            if (searchBarContainer.getVisibility() == View.GONE) {
+                searchBarContainer.setVisibility(View.VISIBLE);
                 searchEditText.requestFocus();
             } else {
-                searchEditText.setVisibility(View.GONE);
+                searchBarContainer.setVisibility(View.GONE);
                 searchEditText.setText("");
                 hideSearchResults();
             }
@@ -345,11 +408,41 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        micIcon.setOnClickListener(v -> startVoiceSearch());
+
+
         logoutIcon.setOnClickListener(v -> {
             FirebaseAuth.getInstance().signOut();
             startActivity(new Intent(MainActivity.this, LoginActivity.class));
             finish();
         });
+    }
+
+    private void startVoiceSearch() {
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Parlez pour rechercher...");
+        try {
+            startActivityForResult(intent, VOICE_SEARCH_REQUEST_CODE);
+        } catch (ActivityNotFoundException e) {
+            Toast.makeText(this, "Reconnaissance vocale non disponible sur cet appareil", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == VOICE_SEARCH_REQUEST_CODE && resultCode == RESULT_OK && data != null) {
+            java.util.ArrayList<String> results =
+                    data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+            if (results != null && !results.isEmpty()) {
+                String spoken = results.get(0);
+                searchBarContainer.setVisibility(View.VISIBLE);
+                searchEditText.setText(spoken);
+                searchEditText.setSelection(spoken.length());
+            }
+        }
     }
 
     private void performSearch(String query) {
@@ -549,7 +642,21 @@ public class MainActivity extends AppCompatActivity {
     private void setupNavigation() {
         bottomNavigationView.setOnItemSelectedListener(item -> {
             if (item.getItemId() == R.id.nav_home) {
+                cinemaView.setVisibility(View.GONE);
                 showHomeContent();
+                return true;
+            } else if (item.getItemId() == R.id.nav_cinema) {
+                homeContentScrollView.setVisibility(View.GONE);
+                seriesContentScrollView.setVisibility(View.GONE);
+                comingSoonView.setVisibility(View.GONE);
+                myListView.setVisibility(View.GONE);
+                profileView.setVisibility(View.GONE);
+                tabAndFilterRow.setVisibility(View.GONE);
+                cinemaView.setVisibility(View.VISIBLE);
+                if (!cinemaMapInitialized) {
+                    cinemaMapInitialized = true;
+                    initCinemaMap();
+                }
                 return true;
             } else if (item.getItemId() == R.id.nav_coming_soon) {
                 homeContentScrollView.setVisibility(View.GONE);
@@ -557,6 +664,7 @@ public class MainActivity extends AppCompatActivity {
                 comingSoonView.setVisibility(View.VISIBLE);
                 myListView.setVisibility(View.GONE);
                 profileView.setVisibility(View.GONE);
+                cinemaView.setVisibility(View.GONE);
                 tabAndFilterRow.setVisibility(View.GONE);
                 if (!comingSoonLoaded) {
                     fetchComingSoonMovies();
@@ -568,6 +676,7 @@ public class MainActivity extends AppCompatActivity {
                 seriesContentScrollView.setVisibility(View.GONE);
                 comingSoonView.setVisibility(View.GONE);
                 profileView.setVisibility(View.GONE);
+                cinemaView.setVisibility(View.GONE);
                 myListView.setVisibility(View.VISIBLE);
                 tabAndFilterRow.setVisibility(View.GONE);
                 loadMyList();
@@ -577,6 +686,7 @@ public class MainActivity extends AppCompatActivity {
                 seriesContentScrollView.setVisibility(View.GONE);
                 comingSoonView.setVisibility(View.GONE);
                 myListView.setVisibility(View.GONE);
+                cinemaView.setVisibility(View.GONE);
                 profileView.setVisibility(View.VISIBLE);
                 tabAndFilterRow.setVisibility(View.GONE);
                 return true;
@@ -1275,6 +1385,202 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }, error -> Log.e(TAG, "Genre items error: " + error.getMessage()));
         queue.add(req);
+    }
+
+    // ─── Cinéma ──────────────────────────────────────────────────────────────
+
+    private void initCinemaMap() {
+        mapView.getMapAsync(this);
+    }
+
+    @Override
+    public void onMapReady(@NonNull GoogleMap map) {
+        googleMap = map;
+        googleMap.getUiSettings().setZoomControlsEnabled(true);
+        googleMap.getUiSettings().setMyLocationButtonEnabled(true);
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            googleMap.setMyLocationEnabled(true);
+            getUserLocationAndSearchCinemas();
+        } else {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    LOCATION_PERMISSION_REQUEST_CODE);
+        }
+    }
+
+    private void getUserLocationAndSearchCinemas() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) return;
+
+        // Toujours demander une position fraîche — getLastLocation() retourne du cache (ex: San Francisco sur émulateur)
+        com.google.android.gms.location.LocationRequest request =
+                com.google.android.gms.location.LocationRequest.create()
+                        .setPriority(com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY)
+                        .setNumUpdates(1)
+                        .setInterval(0)
+                        .setFastestInterval(0);
+
+        locationCallback = new com.google.android.gms.location.LocationCallback() {
+            @Override
+            public void onLocationResult(@NonNull com.google.android.gms.location.LocationResult result) {
+                fusedLocationClient.removeLocationUpdates(locationCallback);
+                android.location.Location loc = result.getLastLocation();
+                if (loc != null) {
+                    onLocationObtained(loc);
+                } else {
+                    Toast.makeText(MainActivity.this,
+                            "Impossible d'obtenir la localisation. Vérifiez que le GPS est activé.",
+                            Toast.LENGTH_LONG).show();
+                }
+            }
+        };
+
+        try {
+            fusedLocationClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper());
+        } catch (SecurityException e) {
+            Log.e(TAG, "Location error: " + e.getMessage());
+        }
+    }
+
+    private void onLocationObtained(android.location.Location location) {
+        LatLng userLatLng = new LatLng(location.getLatitude(), location.getLongitude());
+        if (googleMap != null) {
+            // Zoom pays (6) pour voir tous les cinémas du pays
+            googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 6f));
+            googleMap.addMarker(new MarkerOptions()
+                    .position(userLatLng)
+                    .title("Vous êtes ici")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+        }
+        fetchNearbyCinemas(location.getLatitude(), location.getLongitude());
+    }
+
+    private void fetchNearbyCinemas(double lat, double lng) {
+        // Overpass API via POST — évite les limites de taille d'URL et les erreurs serveur
+        final String query = "[out:json][timeout:30];"
+                + "(node[\"amenity\"=\"cinema\"](around:300000," + lat + "," + lng + ");"
+                + "way[\"amenity\"=\"cinema\"](around:300000," + lat + "," + lng + "););"
+                + "out center;";
+
+        com.android.volley.toolbox.StringRequest req = new com.android.volley.toolbox.StringRequest(
+                Request.Method.POST,
+                "https://overpass-api.de/api/interpreter",
+                response -> parseCinemaResponse(response, lat, lng),
+                error -> {
+                    Log.e(TAG, "Cinema fetch error: " + error.toString());
+                    // Essayer un miroir alternatif en cas d'échec
+                    fetchCinemasFromMirror(query, lat, lng);
+                }) {
+            @Override
+            public byte[] getBody() {
+                String body = "data=" + Uri.encode(query);
+                return body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            }
+            @Override
+            public String getBodyContentType() {
+                return "application/x-www-form-urlencoded; charset=UTF-8";
+            }
+        };
+
+        req.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
+                30000, 0, com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        queue.add(req);
+    }
+
+    private void fetchCinemasFromMirror(String query, double lat, double lng) {
+        // Miroir de secours si le serveur principal échoue
+        com.android.volley.toolbox.StringRequest req = new com.android.volley.toolbox.StringRequest(
+                Request.Method.POST,
+                "https://lz4.overpass-api.de/api/interpreter",
+                response -> parseCinemaResponse(response, lat, lng),
+                error -> {
+                    Log.e(TAG, "Mirror error: " + error.toString());
+                    Toast.makeText(this, "Impossible de charger les cinémas, réessayez plus tard.", Toast.LENGTH_LONG).show();
+                }) {
+            @Override
+            public byte[] getBody() {
+                String body = "data=" + Uri.encode(query);
+                return body.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            }
+            @Override
+            public String getBodyContentType() {
+                return "application/x-www-form-urlencoded; charset=UTF-8";
+            }
+        };
+        req.setRetryPolicy(new com.android.volley.DefaultRetryPolicy(
+                30000, 0, com.android.volley.DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        queue.add(req);
+    }
+
+    private void parseCinemaResponse(String response, double lat, double lng) {
+        try {
+            JSONArray elements = new JSONObject(response).getJSONArray("elements");
+            cinemaList.clear();
+            googleMap.clear();
+
+            googleMap.addMarker(new MarkerOptions()
+                    .position(new LatLng(lat, lng))
+                    .title("Vous êtes ici")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+
+            for (int i = 0; i < elements.length(); i++) {
+                JSONObject obj = elements.getJSONObject(i);
+                JSONObject tags = obj.optJSONObject("tags");
+                if (tags == null) continue;
+
+                String name = tags.optString("name", "");
+                if (name.isEmpty()) name = "Cinéma";
+
+                double cLat, cLng;
+                if ("way".equals(obj.optString("type"))) {
+                    JSONObject center = obj.optJSONObject("center");
+                    if (center == null) continue;
+                    cLat = center.getDouble("lat");
+                    cLng = center.getDouble("lon");
+                } else {
+                    if (!obj.has("lat") || !obj.has("lon")) continue;
+                    cLat = obj.getDouble("lat");
+                    cLng = obj.getDouble("lon");
+                }
+
+                String city = tags.optString("addr:city",
+                        tags.optString("addr:town", tags.optString("addr:state", "")));
+                cinemaList.add(new Cinema(name, city, cLat, cLng, 0));
+
+                googleMap.addMarker(new MarkerOptions()
+                        .position(new LatLng(cLat, cLng))
+                        .title(name)
+                        .snippet(city.isEmpty() ? null : city)
+                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+            }
+            cinemaAdapter.notifyDataSetChanged();
+            if (cinemaList.isEmpty()) {
+                Toast.makeText(this, "Aucun cinéma trouvé dans ce pays", Toast.LENGTH_SHORT).show();
+            }
+        } catch (JSONException e) {
+            Log.e(TAG, "Cinema parse error: " + e.getMessage());
+            Toast.makeText(this, "Erreur de traitement des données", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (googleMap != null) {
+                    try {
+                        googleMap.setMyLocationEnabled(true);
+                    } catch (SecurityException ignored) {}
+                    getUserLocationAndSearchCinemas();
+                }
+            } else {
+                Toast.makeText(this, "Permission de localisation refusée", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     private int dpToPx(int dp) {

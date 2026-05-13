@@ -13,6 +13,10 @@
         android:icon="@drawable/ic_my_list"
         android:title="@string/tab_my_list" />
     <item
+        android:id="@+id/nav_cinema"
+        android:icon="@drawable/ic_cinema"
+        android:title="@string/tab_cinema" />
+    <item
         android:id="@+id/nav_profile"
         android:icon="@drawable/ic_profile"
         android:title="@string/tab_profile" />

@@ -370,6 +370,47 @@
 
     </LinearLayout>
 
+    <!-- ===== CINÉMA ===== -->
+    <LinearLayout
+        android:id="@+id/cinemaView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@+id/bottomNavigation"
+        android:layout_alignParentTop="true"
+        android:orientation="vertical"
+        android:background="@color/black"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Cinémas"
+            android:textColor="@color/white"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:paddingTop="72dp"
+            android:paddingStart="16dp"
+            android:paddingBottom="10dp" />
+
+        <com.google.android.gms.maps.MapView
+            android:id="@+id/mapView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/cinemaRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="130dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="8dp"
+            android:clipToPadding="false"
+            android:overScrollMode="never"
+            android:background="@color/black" />
+
+    </LinearLayout>
+
     <!-- ===== PROFIL ===== -->
     <ScrollView
         android:id="@+id/profileView"
@@ -553,20 +594,41 @@
 
         </LinearLayout>
 
-        <!-- Search Bar (visible quand activée) -->
-        <EditText
-            android:id="@+id/editTextSearch"
+        <!-- Search Bar avec micro (visible quand activée) -->
+        <LinearLayout
+            android:id="@+id/searchBarContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_below="@id/tabAndFilterRow"
             android:layout_marginTop="8dp"
             android:background="@color/netflix_dark_grey"
-            android:hint="Ex: film d'horreur japonais, comédie romantique française..."
-            android:inputType="text"
-            android:padding="12dp"
-            android:textColor="@color/white"
-            android:textColorHint="#999999"
-            android:visibility="gone" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <EditText
+                android:id="@+id/editTextSearch"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:hint="Ex: film d'horreur japonais, comédie romantique..."
+                android:inputType="text"
+                android:imeOptions="actionSearch"
+                android:singleLine="true"
+                android:padding="12dp"
+                android:textColor="@color/white"
+                android:textColorHint="#999999" />
+
+            <ImageView
+                android:id="@+id/imageMicIcon"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:padding="10dp"
+                android:src="@drawable/ic_mic"
+                app:tint="#999999" />
+
+        </LinearLayout>
 
     </RelativeLayout>
 
