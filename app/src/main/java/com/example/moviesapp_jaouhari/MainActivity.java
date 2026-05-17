@@ -129,6 +129,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private EditText searchEditText;
     private ImageView searchIcon;
     private ImageView micIcon;
+    private ImageView moodIcon;
     private ImageView logoutIcon;
     private BottomNavigationView bottomNavigationView;
     private NestedScrollView homeContentScrollView;
@@ -234,7 +235,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         db = FirebaseFirestore.getInstance();
         currentUser = FirebaseAuth.getInstance().getCurrentUser();
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        mapView.onCreate(savedInstanceState);
+        if (mapView != null) mapView.onCreate(savedInstanceState);
 
         bottomNavigationView.setItemActiveIndicatorEnabled(false);
 
@@ -258,6 +259,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         searchEditText = findViewById(R.id.editTextSearch);
         searchIcon = findViewById(R.id.imageSearchIcon);
         micIcon = findViewById(R.id.imageMicIcon);
+        moodIcon = findViewById(R.id.imageMoodIcon);
         logoutIcon = findViewById(R.id.logoutIcon);
         bottomNavigationView = findViewById(R.id.bottomNavigation);
         homeContentScrollView = findViewById(R.id.homeContentScrollView);
@@ -349,14 +351,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onResume() {
         super.onResume();
-        mapView.onResume();
+        if (mapView != null) mapView.onResume();
         loadHomeRecommendations();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        mapView.onPause();
+        if (mapView != null) mapView.onPause();
     }
 
     @Override
@@ -364,13 +366,13 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onDestroy();
         heroAutoScrollHandler.removeCallbacksAndMessages(null);
         if (locationCallback != null) fusedLocationClient.removeLocationUpdates(locationCallback);
-        mapView.onDestroy();
+        if (mapView != null) mapView.onDestroy();
     }
 
     @Override
     public void onLowMemory() {
         super.onLowMemory();
-        mapView.onLowMemory();
+        if (mapView != null) mapView.onLowMemory();
     }
 
     // ─── Search ──────────────────────────────────────────────────────────────
@@ -409,6 +411,9 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
 
         micIcon.setOnClickListener(v -> startVoiceSearch());
+
+        moodIcon.setOnClickListener(v ->
+                startActivity(new Intent(this, MoodScanActivity.class)));
 
 
         logoutIcon.setOnClickListener(v -> {
@@ -1390,7 +1395,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     // ─── Cinéma ──────────────────────────────────────────────────────────────
 
     private void initCinemaMap() {
-        mapView.getMapAsync(this);
+        if (mapView != null) mapView.getMapAsync(this);
     }
 
     @Override

@@ -548,6 +548,14 @@
                 app:tint="@color/white" />
 
             <ImageView
+                android:id="@+id/imageMoodIcon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="16dp"
+                android:src="@drawable/ic_camera_mood"
+                app:tint="@color/white" />
+
+            <ImageView
                 android:id="@+id/logoutIcon"
                 android:layout_width="28dp"
                 android:layout_height="28dp"

@@ -17,7 +17,8 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MoviesApp_Jaouhari">
+        android:theme="@style/Theme.MoviesApp_Jaouhari"
+        android:usesCleartextTraffic="true">
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
@@ -43,6 +44,7 @@
         <activity android:name=".MovieDetailActivity" />
         <activity android:name=".VideoPlayer" />
         <activity android:name=".movie_item_list" />
+        <activity android:name=".MoodScanActivity" />
     </application>
 
 </manifest>
